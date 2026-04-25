@@ -14,7 +14,6 @@ col_space, col_toggle = st.columns([6, 1.4])
 with col_toggle:
     dark_mode = st.toggle("Dark Mode", value=False)
 
-# --- CSS DESIGN ---
 base_css = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -105,6 +104,7 @@ st.markdown(base_css + (dark_css if dark_mode else ""), unsafe_allow_html=True)
 # --- DATEN-LOGIK ---
 @st.cache_data
 def load_data():
+    # Wir laden hier die verifizierte Datei
     df = pd.read_excel('Biel_Adressregister_Final.xlsx', sheet_name='Adress-Verzeichnis')
     df = df.fillna("")
     df['Fläche_Zahl'] = df['Fläche(n)'].str.extract(r'(\d+)').astype(float).fillna(0)
@@ -152,9 +152,9 @@ try:
         if os.path.exists(logo_file): st.image(logo_file, use_container_width=True)
             
     st.markdown("<div class='main-title'>Wie viel Stadt besitzt die Stadt?</div>", unsafe_allow_html=True)
-    st.markdown("<div class='title-subtext'>Analyse des Immobilienregisters auf Basis amtlicher Geodaten.</div>", unsafe_allow_html=True)
+    st.markdown("<div class='title-subtext'>Analyse der Bieler Eigentumsverhältnisse auf Basis amtlicher Geodaten.</div>", unsafe_allow_html=True)
 
-    tab1, tab2 = st.tabs(["🔍 Adress-Suche", "📊 Facts & Figures"])
+    tab1, tab2 = st.tabs(["🔍 Adress-Suche", "📊 Stadt Biel: Facts"])
 
     with tab1:
         st.write("")
@@ -173,34 +173,41 @@ try:
 
     with tab2:
         st.write("")
-        st.markdown("<div class='label-text'>Bestandesaufnahme Biel</div>", unsafe_allow_html=True)
+        st.markdown("<div class='label-text'>Datenanalyse: Stadteigentum</div>", unsafe_allow_html=True)
         
-        # Berechnung der Facts
-        stadt_df = df[df['Eigentumsverhältnis'].str.contains("01", na=False)]
-        privat_df = df[df['Eigentumsverhältnis'].str.contains("03", na=False)]
-        baurecht_df = df[df['Grundstücksnummer(n)'].str.contains("Baurecht", na=False)]
+        # --- STADT-DATEN BERECHNUNG ---
+        stadt_mask = df['Eigentumsverhältnis'].str.contains("01", na=False)
+        stadt_df = df[stadt_mask]
         
-        total_objekte = len(df)
-        total_flaeche = df['Fläche_Zahl'].sum()
-        stadt_flaeche = stadt_df['Fläche_Zahl'].sum()
+        # Baurecht innerhalb des Stadtbesitzes
+        stadt_baurecht_mask = stadt_df['Grundstücksnummer(n)'].str.contains("Baurecht", na=False)
+        stadt_baurecht_df = stadt_df[stadt_baurecht_mask]
+        
+        # Reines Eigentum (Kein Baurecht, Kein Quellenrecht)
+        reines_eigentum_mask = (~stadt_df['Grundstücksnummer(n)'].str.contains("Baurecht|Quellenrecht", na=False))
+        stadt_rein_df = stadt_df[reines_eigentum_mask]
+        
+        total_flaeche_stadt = stadt_df['Fläche_Zahl'].sum()
+        flaeche_baurecht = stadt_baurecht_df['Fläche_Zahl'].sum()
+        fussballfelder = total_flaeche_stadt / 7140
         
         # Grid für Karten
         c1, c2 = st.columns(2)
         with c1:
-            st.markdown(f"""<div class='fact-card'><span class='label-text'>Öffentlicher Grund</span><br><div style='font-size:2.5rem; font-weight:300;'>{stadt_flaeche/total_flaeche*100:.1f}%</div><span style='color:#86868B;'>der gesamten Parzellenfläche gehört der Stadt Biel.</span></div>""", unsafe_allow_html=True)
-            st.markdown(f"""<div class='fact-card'><span class='label-text'>Baurechts-Strategie</span><br><div style='font-size:2.5rem; font-weight:300;'>{len(baurecht_df)}</div><span style='color:#86868B;'>Objekte stehen im Baurecht. Hier bleibt die Stadt oder eine Institution oft Bodeneigentümerin.</span></div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div class='fact-card'><span class='label-text'>Gesamtfläche Stadt Biel</span><br><div style='font-size:2.2rem; font-weight:300;'>{int(total_flaeche_stadt):,} m²</div><span style='color:#86868B;'>Das entspricht einer Fläche von ca. <strong>{int(fussballfelder)} Fussballfeldern</strong>.</span></div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div class='fact-card'><span class='label-text'>Strategisches Baurecht</span><br><div style='font-size:2.2rem; font-weight:300;'>{int(flaeche_baurecht):,} m²</div><span style='color:#86868B;'>Diese Fläche gehört der Stadt, wurde aber per Baurecht an Dritte zur Nutzung abgegeben.</span></div>""", unsafe_allow_html=True)
         with c2:
-            st.markdown(f"""<div class='fact-card'><span class='label-text'>Anzahl Adressen</span><br><div style='font-size:2.5rem; font-weight:300;'>{len(stadt_df)}</div><span style='color:#86868B;'>Adressen sind ganz oder teilweise im Besitz der Stadt Biel.</span></div>""", unsafe_allow_html=True)
-            st.markdown(f"""<div class='fact-card'><span class='label-text'>Private Dominanz</span><br><div style='font-size:2.5rem; font-weight:300;'>{len(privat_df)}</div><span style='color:#86868B;'>Gebäude befinden sich in privatem Eigentum (Privatpersonen oder Firmen).</span></div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div class='fact-card'><span class='label-text'>Reines Stadteigentum</span><br><div style='font-size:2.2rem; font-weight:300;'>{len(stadt_rein_df)}</div><span style='color:#86868B;'>Einzeladressen, die sich vollumfänglich im Besitz der Stadt befinden (ohne Baurechte).</span></div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div class='fact-card'><span class='label-text'>Areal-Anteil</span><br><div style='font-size:2.2rem; font-weight:300;'>{total_flaeche_stadt / df['Fläche_Zahl'].sum() * 100:.1f}%</div><span style='color:#86868B;'>Anteil der Stadt Biel an der gesamten erfassten Parzellenfläche im Register.</span></div>""", unsafe_allow_html=True)
 
         st.write("")
         st.markdown(f"""
         <div style='background-color: {"#1C1C1E" if dark_mode else "#FFFFFF"}; padding: 2rem; border-radius: 16px; border: 1px solid {"#333336" if dark_mode else "#EAEAEA"};'>
-            <span class='label-text'>Zusammenfassung</span><br><br>
-            <span class='info-text'>Das Immobilienregister umfasst aktuell <strong>{total_objekte:,}</strong> erfasste Adressen. 
-            Während der Grossteil der Gebäude privat bewirtschaftet wird, sichert sich die Stadt Biel durch 
-            gezieltes Eigentum und Baurechtsverträge massgeblichen Einfluss auf die Stadtentwicklung. 
-            Besonders grosse Avale und Infrastrukturflächen verbleiben im öffentlichen Besitz.</span>
+            <span class='label-text'>Erkenntnis</span><br><br>
+            <span class='info-text'>Die Stadt Biel agiert als eine der mächtigsten Immobilien-Akteurinnen der Region. 
+            Besonders auffällig ist die <strong>Baurechts-Strategie</strong>: Über ein beachtliches Areal behält die Stadt 
+            die langfristige Kontrolle über den Boden, während private Firmen oder Personen die Gebäude darauf nutzen. 
+            Diese Form der Landpolitik sichert der Stadt Biel Mitspracherecht bei der Gestaltung wichtiger Schlüsselareale.</span>
         </div>
         """, unsafe_allow_html=True)
 
