@@ -186,9 +186,10 @@ METHODIK_TEXT = """
 **Methodik & Datenquellen:**
 
 Die Daten stammen aus dem öffentlichen WebGIS der Stadt Biel (Stand: 26.11.2025). Da die Rohdaten komplex sind, haben wir sie mit einer eigenen Logik neu aufbereitet:
-	1	Besitz-Check: Wir haben für jede Parzelle automatisiert analysiert, wer involviert ist (z. B. wenn die Stadt den Boden besitzt, aber jemand anderes das Baurecht).
-	2	Daten-Fusion: Wir haben die geografischen Pläne der Stadt mit dem Adressregister des Bundes [map.geo.admin.ch](https://map.geo.admin.ch) verknüpft, damit man Grundstücke einfach per Adresse finden kann.
-	3	Einfachheit: Bei komplizierten Fällen (wie vielen verschiedenen Eigentümern in einem Haus) haben wir die Darstellung vereinfacht, um die Übersichtlichkeit zu wahren.
+
+	<strong>1. Besitz-Check:</strong> Wir haben für jede Parzelle automatisiert analysiert, wer involviert ist (z. B. wenn die Stadt den Boden besitzt, aber jemand anderes das Baurecht).
+	<strong>2. Daten-Fusion:</strong> Wir haben die geografischen Pläne der Stadt mit dem Adressregister des Bundes [map.geo.admin.ch](https://map.geo.admin.ch) verknüpft, damit man Grundstücke einfach per Adresse finden kann.
+	<strong>3. Einfachheit:</strong> Bei komplizierten Fällen (wie vielen verschiedenen Eigentümern in einem Haus) haben wir die Darstellung vereinfacht, um die Übersichtlichkeit zu wahren.
 
 Dieses Tool dient ausschliesslich der Orientierung. Es bietet keine verbindliche Auskunft. Bei komplexen Grenz- oder Stockwerkeigentums-Fällen können vereinzelte Ungenauigkeiten auftreten.
 """
