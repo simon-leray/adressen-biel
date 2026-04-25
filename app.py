@@ -38,7 +38,7 @@ div[role="radiogroup"] > label:has(input:checked) { background-color: #111111 !i
 div[role="radiogroup"] > label:has(input:checked) p { color: #FFFFFF !important; }
 .legend-box { padding: 15px; border-radius: 12px; background-color: #FFFFFF; border: 1px solid #EAEAEA; margin-bottom: 15px; display: flex; gap: 15px; flex-wrap: wrap; }
 .legend-item { display: flex; align-items: center; font-size: 0.85rem; font-weight: 500; color: #111111; }
-.legend-color { width: 14px; height: 14px; border-radius: 4px; margin-right: 8px; }
+.legend-color { width: 14px; height: 14px; border-radius: 4px; margin-right: 8px; border: 1px solid rgba(0,0,0,0.1); }
 .maps-link { font-size: 0.85rem; color: #0066CC; text-decoration: none; font-weight: 500; }
 </style>
 """
@@ -132,18 +132,25 @@ def load_geojson_map_data(df):
                 if egr == "01": kat = "Vollbesitz"
                 else: kat = "Andere"
 
-            # FARBEN-LOGIK AKTUALISIERT NACH DEINEM WUNSCH (ohne Alpha-Kanal für reine Farben)
+            # --- FARBEN-LOGIK "HIGHLIGHTER-STYLE" ---
+            # line_color = Voll deckend für harte Grundstücksgrenzen (255)
+            # fill_color = Hohe Transparenz (60 statt 255), damit Strassennamen durchscheinen
+            
             if kat == "Vollbesitz":
-                f["properties"]["fill_color"] = [0, 122, 255]    # Blau
+                f["properties"]["line_color"] = [0, 122, 255, 255]    # Blau (Rand)
+                f["properties"]["fill_color"] = [0, 122, 255, 60]     # Blau (Fläche)
                 f["properties"]["kat_name"] = "Vollbesitz Stadt"
             elif kat == "Bodenbesitz":
-                f["properties"]["fill_color"] = [90, 200, 250]   # Hellblau
+                f["properties"]["line_color"] = [90, 200, 250, 255]   # Hellblau (Rand)
+                f["properties"]["fill_color"] = [90, 200, 250, 60]    # Hellblau (Fläche)
                 f["properties"]["kat_name"] = "Bodenbesitz Stadt (Baurecht abgegeben)"
             elif kat == "Andere":
-                f["properties"]["fill_color"] = [255, 149, 0]    # Orange
+                f["properties"]["line_color"] = [255, 149, 0, 255]    # Orange (Rand)
+                f["properties"]["fill_color"] = [255, 149, 0, 60]     # Orange (Fläche)
                 f["properties"]["kat_name"] = "Privat / Andere"
             elif kat == "Gebäudebesitz":
-                f["properties"]["fill_color"] = [255, 179, 64]   # Hellorange
+                f["properties"]["line_color"] = [255, 179, 64, 255]   # Hellorange (Rand)
+                f["properties"]["fill_color"] = [255, 179, 64, 60]    # Hellorange (Fläche)
                 f["properties"]["kat_name"] = "Gebäudebesitz Stadt (Baurecht erhalten)"
                 
         return features
@@ -186,6 +193,7 @@ try:
         st.markdown("<div class='main-title'>Wie viel Stadt besitzt die Stadt?</div>", unsafe_allow_html=True)
         st.markdown("<div class='title-subtext'>Recherche-Portal für das Immobilienregister Biel</div>", unsafe_allow_html=True)
         t1, t2 = st.tabs(["🔍 Suche & Recherche", "🗺️ Interaktive Areal-Karte"])
+        
         with t1:
             st.write("")
             search = st.text_input("Suche", placeholder="Strasse und Hausnummer (z.B. Ring 16)...", label_visibility="collapsed")
@@ -220,10 +228,10 @@ try:
             
             st.markdown("""
             <div class='legend-box'>
-                <div class='legend-item'><div class='legend-color' style='background-color:#007AFF;'></div> Vollbesitz (Stadt)</div>
-                <div class='legend-item'><div class='legend-color' style='background-color:#5AC8FA;'></div> Bodenbesitz (Baurecht abg.)</div>
-                <div class='legend-item'><div class='legend-color' style='background-color:#FF9500;'></div> Privat / Andere</div>
-                <div class='legend-item'><div class='legend-color' style='background-color:#FFB340;'></div> Gebäudebesitz (Baurecht erh.)</div>
+                <div class='legend-item'><div class='legend-color' style='background-color:rgba(0,122,255,0.3); border-color:#007AFF;'></div> Vollbesitz (Stadt)</div>
+                <div class='legend-item'><div class='legend-color' style='background-color:rgba(90,200,250,0.3); border-color:#5AC8FA;'></div> Bodenbesitz (Baurecht abg.)</div>
+                <div class='legend-item'><div class='legend-color' style='background-color:rgba(255,149,0,0.3); border-color:#FF9500;'></div> Privat / Andere</div>
+                <div class='legend-item'><div class='legend-color' style='background-color:rgba(255,179,64,0.3); border-color:#FFB340;'></div> Gebäudebesitz (Baurecht erh.)</div>
             </div>
             """, unsafe_allow_html=True)
             
@@ -233,23 +241,22 @@ try:
                     layer = pdk.Layer(
                         "GeoJsonLayer", 
                         data={"type": "FeatureCollection", "features": geo}, 
-                        opacity=0.75, # Opacity etwas runter, damit die Strassennamen von unten durchschimmern 
+                        opacity=1.0, # Die Transparenz wird jetzt direkt über die Farbcodes (fill_color) gesteuert
                         stroked=True, 
                         filled=True, 
                         get_fill_color="properties.fill_color", 
-                        get_line_color=[255,255,255,100], 
-                        line_width_min_pixels=1, 
+                        get_line_color="properties.line_color", 
+                        line_width_min_pixels=2, # Macht die Konturen kräftiger
                         pickable=True
                     )
                     
-                    # Hier setzen wir "carto" ein, damit die Karte darunter s/w ist und die Labels sauber zu sehen sind
                     map_style = "dark" if dark_mode else "light"
                     
                     st.pydeck_chart(pdk.Deck(
                         map_provider="carto",
                         map_style=map_style,
                         layers=[layer], 
-                        initial_view_state=pdk.ViewState(latitude=47.1368, longitude=7.2468, zoom=13.5), 
+                        initial_view_state=pdk.ViewState(latitude=47.1368, longitude=7.2468, zoom=14.0), 
                         tooltip={
                             "html": "<b>Parzelle:</b> {grst_nummer}<br/><b>Kategorie:</b> {kat_name}",
                             "style": {"backgroundColor": "steelblue", "color": "white"}
