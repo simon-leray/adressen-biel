@@ -420,12 +420,12 @@ with t1:
     def clear_search():
         st.session_state.search_input = ""
 
-    # Buttons: natürliche Breite, nebeneinander
-    col_btn1, col_btn2, _ = st.columns([1, 1, 4])
+    # Buttons: je 50% Breite, nebeneinander
+    col_btn1, col_btn2 = st.columns(2)
     with col_btn1:
-        st.button("🔍 Suchen")
+        st.button("🔍 Suchen", use_container_width=True)
     with col_btn2:
-        st.button("✕ Löschen", on_click=clear_search)
+        st.button("✕ Löschen", on_click=clear_search, use_container_width=True)
 
     # Filter: Desktop = Radio-Pills, Mobile = Selectbox (CSS show/hide)
     cur_idx = next(
