@@ -150,16 +150,14 @@ div[data-testid="stExpander"] {
     /* Mobile: Selectbox-Filter zeigen, Radio-Pills verstecken */
     .stRadio { display: none !important; }
     [data-testid="stSelectbox"] { display: block !important; }
-    /* Columns auf Mobile nie stacken */
-    [data-testid="stHorizontalBlock"] {
+    /* Nur Button-Reihen auf Mobile nie stacken */
+    [data-testid="stHorizontalBlock"]:has(.stButton) {
         flex-direction: row !important;
         flex-wrap: nowrap !important;
-        gap: 0.5rem !important;
     }
-    [data-testid="column"] {
+    [data-testid="stHorizontalBlock"]:has(.stButton) > [data-testid="column"] {
         flex: 1 1 0% !important;
         min-width: 0 !important;
-        width: auto !important;
     }
 }
 .label-text {
