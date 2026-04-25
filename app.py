@@ -106,6 +106,16 @@ st.markdown("""
     box-shadow: 0 8px 30px rgba(0,0,0,0.06) !important;
     outline: none !important;
 }
+.stTextInput > div > div:focus-within {
+    border-color: #CCCCCC !important;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.06) !important;
+    outline: none !important;
+}
+[data-baseweb="base-input"]:focus-within {
+    border-color: #CCCCCC !important;
+    box-shadow: none !important;
+    outline: none !important;
+}
 div[data-testid="stExpander"] {
     border-radius: 12px;
     margin-bottom: 1rem;
@@ -114,11 +124,11 @@ div[data-testid="stExpander"] {
 }
 [data-testid="stExpanderDetails"] {
     padding-top: 0.5rem !important;
-    padding-bottom: 0.5rem !important;
+    padding-bottom: 1.25rem !important;
 }
 [data-testid="stExpanderDetails"] hr {
     margin-top: 0.4rem !important;
-    margin-bottom: 0.4rem !important;
+    margin-bottom: 0.75rem !important;
 }
 .main-title {
     text-align: center; font-weight: 700; font-size: 2.8rem;
