@@ -199,7 +199,57 @@ div[role="radiogroup"] > label:has(input:checked) p { color: #FFFFFF !important;
     font-size: 0.85rem; color: #0066CC;
     text-decoration: none; font-weight: 500;
 }
+.search-clear-btn {
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+    color: #AAAAAA;
+    padding: 2px 8px;
+    border-radius: 50%;
+    display: none;
+    z-index: 100;
+    line-height: 1;
+}
+.search-clear-btn:hover { color: #555555; }
 </style>
+""", unsafe_allow_html=True)
+
+# X-Button im Suchfeld (JavaScript)
+st.markdown("""
+<script>
+(function() {
+    function setup() {
+        var containers = document.querySelectorAll('[data-testid="stTextInput"] > div > div');
+        containers.forEach(function(container) {
+            if (container.querySelector('.search-clear-btn')) return;
+            var input = container.querySelector('input');
+            if (!input) return;
+            container.style.position = 'relative';
+            var btn = document.createElement('button');
+            btn.className = 'search-clear-btn';
+            btn.innerHTML = '✕';
+            container.appendChild(btn);
+            input.addEventListener('input', function() {
+                btn.style.display = input.value ? 'block' : 'none';
+            });
+            btn.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+                setter.call(input, '');
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                btn.style.display = 'none';
+            });
+        });
+    }
+    setTimeout(setup, 600);
+    setTimeout(setup, 1800);
+})();
+</script>
 """, unsafe_allow_html=True)
 
 # ── 4. METHODIK TEXT ─────────────────────────────────────────────────────────
