@@ -391,18 +391,21 @@ t1, t2 = st.tabs(["🔍 Suche & Recherche", "Interaktive Karte"])
 
 # ── Tab 1: Suche ─────────────────────────────────────────────────────────────
 with t1:
-    col_input, col_clear = st.columns([5, 1])
-    with col_input:
-        search = st.text_input(
-            "Suche",
-            placeholder="Strasse und Hausnummer",
-            label_visibility="collapsed",
-            key="search_input",
-        )
-    with col_clear:
-        if st.button("✕ Löschen", use_container_width=True):
-            st.session_state.search_input = ""
-            st.rerun()
+    search = st.text_input(
+        "Suche",
+        placeholder="Strasse und Hausnummer",
+        label_visibility="collapsed",
+        key="search_input",
+    )
+
+    def clear_search():
+        st.session_state.search_input = ""
+
+    col_btn1, col_btn2, _ = st.columns([1, 1, 3])
+    with col_btn1:
+        st.button("🔍 Suchen", use_container_width=True)
+    with col_btn2:
+        st.button("✕ Löschen", on_click=clear_search, use_container_width=True)
     f_mode = st.radio("Filter", FILTER_OPTIONEN, horizontal=True, label_visibility="collapsed")
 
     hinweis_key = next((k for k in FILTER_HINWEISE if k in f_mode), "Alle Adressen")
@@ -412,6 +415,7 @@ with t1:
         unsafe_allow_html=True,
     )
 
+    search = st.session_state.get("search_input", "")
     f_df = df.copy()
     if "Vollbesitz" in f_mode:      f_df = f_df[f_df['Filter_Kategorie'] == "Vollbesitz"]
     elif "Bodenbesitz" in f_mode:   f_df = f_df[f_df['Filter_Kategorie'] == "Bodenbesitz"]
