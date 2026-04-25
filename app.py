@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import os
 import re
+import urllib.parse # Neu für die Google Maps Links
 
 # --- 1. SEITENKONFIGURATION ---
 st.set_page_config(
@@ -14,7 +15,7 @@ col_space, col_toggle = st.columns([5, 1.5])
 with col_toggle:
     dark_mode = st.toggle("Dark Mode", value=False)
 
-# --- 3. CSS DESIGN (DASHBOARD-STYLE & CHIPS) ---
+# --- 3. CSS DESIGN ---
 base_css = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -72,6 +73,7 @@ div[data-testid="stExpander"] {
 
 .stTabs [aria-selected="true"] { color: #111111 !important; border-bottom: 2px solid #111111 !important; }
 
+/* Filter Buttons Styling (Chips) */
 .stRadio [data-testid="stWidgetLabel"] { display: none; }
 div[role="radiogroup"] { 
     gap: 8px !important; 
@@ -98,6 +100,17 @@ div[role="radiogroup"] > label:has(input:checked) {
     border-color: #111111 !important;
 }
 div[role="radiogroup"] > label:has(input:checked) p { color: #FFFFFF !important; }
+
+/* Styling für den Maps Link */
+.maps-link {
+    font-size: 0.85rem;
+    color: #0066CC;
+    text-decoration: none;
+    font-weight: 500;
+}
+.maps-link:hover {
+    text-decoration: underline;
+}
 </style>
 """
 
@@ -132,12 +145,16 @@ div[role="radiogroup"] > label:has(input:checked) {
     border-color: #FFFFFF !important;
 }
 div[role="radiogroup"] > label:has(input:checked) p { color: #111111 !important; }
+
+.maps-link {
+    color: #58A6FF;
+}
 </style>
 """
 
 st.markdown(base_css + (dark_css if dark_mode else ""), unsafe_allow_html=True)
 
-# --- 4. DATEN-LOGIK & FEHLERFREIE KATEGORISIERUNG ---
+# --- 4. DATEN-LOGIK ---
 @st.cache_data
 def load_data():
     if not os.path.exists('Biel_Adressregister_Final.xlsx'):
@@ -146,7 +163,6 @@ def load_data():
     df = df.fillna("")
     df['Fläche_Zahl'] = df['Fläche(n)'].str.extract(r'(\d+)').astype(float).fillna(0)
     
-    # HIER PASSIERT DIE MAGIE: Wir berechnen die Kategorie VORAB für jede Zeile
     def bestimme_kategorie(row):
         besitz = str(row['Eigentumsverhältnis']).split(" / ")
         nummern = str(row['Grundstücksnummer(n)']).split(" / ")
@@ -170,7 +186,6 @@ def load_data():
         elif not stadt_boden and stadt_bau:
             return "Gebäudebesitz"
         elif stadt_boden and stadt_bau:
-            # Falls andere Private auch noch Baurechte am städtischen Boden haben
             if any("01" not in b for b in bau):
                 return "Bodenbesitz"
             return "Vollbesitz"
@@ -208,9 +223,9 @@ def generiere_besitz_text(besitz_string, nummern_string):
         s_boden = any("01" in str(b) for b in boden)
         s_bau = any("01" in str(b) for b in bau)
         if s_boden and not s_bau:
-            return f"<strong>BAURECHT (ABGEGEBEN)</strong><br><br>Der Boden gehört <strong>{d(boden[0])}</strong>. Die Stadt hat das Land jedoch an Dritte im Baurecht abgegeben. Diese besitzen das Gebäude (oder Teile davon), während die Stadt die Kontrolle über den Boden behält."
+            return f"<strong>BAURECHT (ABGEGEBEN)</strong><br><br>Der Boden gehört <strong>{d(boden[0])}</strong>. Die Stadt hat das Land jedoch an Dritte im Baurecht abgegeben. Diese besitzen das Gebäude, während die Stadt die Kontrolle über den Boden behält."
         if s_bau and not s_boden:
-            return f"<strong>GEBÄUDEBESITZ / STOCKWERKEIGENTUM</strong><br><br>Der Boden gehört einem Dritten. Die <strong>Stadt Biel</strong> besitzt hier jedoch das Gebäude (oder Teile davon, z.B. als Stockwerkeigentum) im Baurecht."
+            return f"<strong>GEBÄUDEBESITZ (BAURECHT ERHALTEN)</strong><br><br>Der Boden gehört einem Dritten. Die <strong>Stadt Biel</strong> besitzt hier jedoch das Gebäude im Baurecht."
         return f"<strong>BAURECHT</strong><br><br>Hier besteht ein komplexes Baurechtsverhältnis zwischen mehreren Parteien."
 
     if len(boden) > 1:
@@ -252,9 +267,8 @@ try:
             elif f_mode == "Bodenbesitz der Stadt (Land im Baurecht abgegeben)":
                 st.markdown("<p style='color:#888888; font-size:0.85rem; margin-top:-10px; margin-bottom:20px;'>💡 Die Stadt besitzt das Land, hat es aber an Dritte im Baurecht abgegeben.</p>", unsafe_allow_html=True)
             elif f_mode == "Gebäudebesitz der Stadt (Land im Baurecht erhalten)":
-                st.markdown("<p style='color:#888888; font-size:0.85rem; margin-top:-10px; margin-bottom:20px;'>💡 Der Boden gehört jemand anderem, aber die Stadt besitzt darauf ein Gebäude (oder Teile davon, z.B. Stockwerkeigentum) im Baurecht.</p>", unsafe_allow_html=True)
+                st.markdown("<p style='color:#888888; font-size:0.85rem; margin-top:-10px; margin-bottom:20px;'>💡 Der Boden gehört jemand anderem, aber die Stadt besitzt darauf ein Gebäude im Baurecht.</p>", unsafe_allow_html=True)
 
-            # --- NEUE, FEHLERFREIE FILTER LOGIK ---
             f_df = df.copy()
             if f_mode == "Vollbesitz der Stadt (Gebäude und Land)":
                 f_df = f_df[f_df['Filter_Kategorie'] == "Vollbesitz"]
@@ -291,6 +305,12 @@ try:
                     for _, r in display_df.iterrows():
                         with st.expander(f"{r['Adresse']}"):
                             st.markdown(f"<div class='info-text'>{generiere_besitz_text(r['Eigentumsverhältnis'], r['Grundstücksnummer(n)'])}</div>", unsafe_allow_html=True)
+                            
+                            # GOOGLE MAPS LINK ERSTELLEN
+                            maps_query = urllib.parse.quote(f"{r['Adresse']}, Biel")
+                            maps_url = f"https://www.google.com/maps/search/?api=1&query={maps_query}"
+                            st.markdown(f'<a href="{maps_url}" target="_blank" class="maps-link">📍 Auf Google Maps anzeigen</a>', unsafe_allow_html=True)
+                            
                             st.write("---")
                             c1, c2, c3 = st.columns(3)
                             c1.markdown(f"<div class='label-text'>Parzelle</div>{r['Grundstücksnummer(n)']}", unsafe_allow_html=True)
@@ -306,13 +326,10 @@ try:
             else:
                 st.info("Bitte geben Sie eine Adresse ein oder wählen Sie einen Filter aus, um das Register zu durchsuchen.")
 
-        # --- TAB 2: FACTS & FIGURES (AKTUALISIERT AUF NEUE KATEGORIEN) ---
         with t2:
             st.write("")
             stadt_voll = df[df['Filter_Kategorie'] == "Vollbesitz"]
             stadt_boden = df[df['Filter_Kategorie'] == "Bodenbesitz"]
-            
-            # Gesamtfläche Boden, der der Stadt gehört = Vollbesitz + Bodenbesitz (Baurecht abgegeben)
             total_flaeche_boden = stadt_voll['Fläche_Zahl'].sum() + stadt_boden['Fläche_Zahl'].sum()
             baurecht_ab_flaeche = stadt_boden['Fläche_Zahl'].sum()
             
