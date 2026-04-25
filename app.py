@@ -7,11 +7,6 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- THEME TOGGLE (Oben rechts) ---
-col_space, col_toggle = st.columns([8, 1])
-with col_toggle:
-    dark_mode = st.toggle("Dark Mode", value=False)
-
 # --- DYNAMISCHES CSS (Inter-Font, Minimalismus) ---
 base_css = """
 <style>
@@ -23,7 +18,6 @@ header {visibility: hidden;}
 
 html, body, [class*="css"] {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
-    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .block-container {
@@ -39,20 +33,31 @@ html, body, [class*="css"] {
     font-size: 1.1rem;
     font-weight: 400;
     transition: all 0.2s ease;
-    border-width: 1px;
+    border: 1px solid #EAEAEA !important;
+    background-color: #FFFFFF !important;
+    color: #111111 !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+}
+
+.stTextInput > div > div > input:focus {
+    border-color: #CCCCCC !important;
+    box-shadow: none;
 }
 
 /* Aufklappbare Boxen (Expander) */
 div[data-testid="stExpander"] {
     border-radius: 12px;
     margin-bottom: 1rem;
-    border-width: 1px;
+    border: 1px solid #EAEAEA !important;
+    background-color: #FFFFFF !important;
+    box-shadow: 0 2px 15px rgba(0,0,0,0.02);
     transition: all 0.2s ease;
 }
 div[data-testid="stExpander"] summary {
     font-weight: 500;
     font-size: 1.1rem;
     padding: 1.2rem;
+    color: #111111 !important;
 }
 
 /* Tabs (Reiter) */
@@ -68,6 +73,11 @@ div[data-testid="stExpander"] summary {
     font-weight: 500;
     font-size: 1rem;
     letter-spacing: 0.01em;
+    color: #999999 !important;
+}
+.stTabs [aria-selected="true"] {
+    color: #111111 !important;
+    border-bottom: 2px solid #111111 !important;
 }
 
 /* Metriken (Zahlen) */
@@ -75,6 +85,7 @@ div[data-testid="stMetricValue"] {
     font-size: 3.5rem;
     font-weight: 300;
     letter-spacing: -0.03em;
+    color: #111111 !important;
 }
 
 /* Eigene Text-Klassen für perfektes Layout */
@@ -82,6 +93,7 @@ div[data-testid="stMetricValue"] {
     font-size: 1.05rem;
     line-height: 1.6;
     font-weight: 300;
+    color: #111111;
 }
 .label-text {
     font-size: 0.7rem;
@@ -90,11 +102,13 @@ div[data-testid="stMetricValue"] {
     letter-spacing: 0.08em;
     margin-bottom: 0.3rem;
     opacity: 0.5;
+    color: #111111;
 }
 .value-text {
     font-size: 0.95rem;
     font-weight: 400;
     margin-bottom: 1.2rem;
+    color: #111111;
 }
 hr {
     border-top: 1px solid rgba(134, 134, 139, 0.2);
@@ -103,34 +117,7 @@ hr {
 </style>
 """
 
-if dark_mode:
-    theme_css = """
-    <style>
-    html, body, [class*="css"] { color: #EEEEEE; background-color: #0A0A0A; }
-    .stTextInput > div > div > input { background-color: #111111; color: #EEEEEE; border-color: #222222; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
-    .stTextInput > div > div > input:focus { border-color: #555555; box-shadow: none; }
-    div[data-testid="stExpander"] { background-color: #111111; border-color: #222222; box-shadow: 0 2px 15px rgba(0,0,0,0.2); }
-    div[data-testid="stExpander"] summary { color: #EEEEEE; }
-    .stTabs [data-baseweb="tab"] { color: #666666; }
-    .stTabs [aria-selected="true"] { color: #EEEEEE; border-bottom: 2px solid #EEEEEE; }
-    </style>
-    """
-    logo_file = "logo_light.png"
-else:
-    theme_css = """
-    <style>
-    html, body, [class*="css"] { color: #111111; background-color: #FAFAFA; }
-    .stTextInput > div > div > input { background-color: #FFFFFF; color: #111111; border-color: #EAEAEA; box-shadow: 0 4px 20px rgba(0,0,0,0.03); }
-    .stTextInput > div > div > input:focus { border-color: #CCCCCC; box-shadow: none; }
-    div[data-testid="stExpander"] { background-color: #FFFFFF; border-color: #EAEAEA; box-shadow: 0 2px 15px rgba(0,0,0,0.02); }
-    div[data-testid="stExpander"] summary { color: #111111; }
-    .stTabs [data-baseweb="tab"] { color: #999999; }
-    .stTabs [aria-selected="true"] { color: #111111; border-bottom: 2px solid #111111; }
-    </style>
-    """
-    logo_file = "logo_dark.png"
-
-st.markdown(base_css + theme_css, unsafe_allow_html=True)
+st.markdown(base_css, unsafe_allow_html=True)
 
 @st.cache_data
 def load_excel():
@@ -195,6 +182,7 @@ try:
     st.write("")
     col_l1, col_logo, col_l3 = st.columns([1, 1.5, 1])
     with col_logo:
+        logo_file = "logo_dark.png" # Wir nutzen jetzt dauerhaft das Logo für hellen Hintergrund
         if os.path.exists(logo_file):
             st.image(logo_file, use_container_width=True)
         else:
