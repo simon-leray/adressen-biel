@@ -55,6 +55,10 @@ def generiere_besitz_text(besitz_string, nummern_string):
             if besitzer not in gebaeude_besitzer:
                 gebaeude_besitzer.append(besitzer)
         
+        if len(gebaeude_besitzer) == 1 and gebaeude_besitzer[0] == boden:
+            return (f"🏢 **Besondere Situation (Baurecht):** Sowohl der Grund und Boden als auch das Gebäude gehören **{boden}**. "
+                    f"Rechtlich gesehen sind dies jedoch zwei getrennte Grundstücke (Liegenschaft und Baurecht).")
+        
         if len(gebaeude_besitzer) == 1:
             gebaeude_text = gebaeude_besitzer[0]
         else:
@@ -100,6 +104,7 @@ try:
                 st.warning("Keine Treffer unter dieser Adresse gefunden.")
 
     with tab2:
+        st.header("Bestandesübersicht")
         col_m1, col_m2 = st.columns(2)
         
         stadt_besitz = df[df['Eigentumsverhältnis'].str.contains("01", na=False)]
