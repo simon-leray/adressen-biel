@@ -267,12 +267,17 @@ def methodik_als_html(text: str) -> str:
 
 # ── 5. HILFSFUNKTIONEN ───────────────────────────────────────────────────────
 
+def _eigentuemer_code(code_str: str) -> str | None:
+    """Findet den Eigentümer-Code (01/02/03) als exakten Token im String."""
+    s = str(code_str)
+    return next((k for k in EIGENTUEMER if re.search(rf'\b{k}\b', s)), None)
+
 def eigentuemer_dativ(code_str: str) -> str:
-    code = next((k for k in EIGENTUEMER if k in str(code_str)), None)
+    code = _eigentuemer_code(code_str)
     return EIGENTUEMER[code][0] if code else "einem unbekannten Eigentümer"
 
 def eigentuemer_nominativ(code_str: str) -> str:
-    code = next((k for k in EIGENTUEMER if k in str(code_str)), None)
+    code = _eigentuemer_code(code_str)
     return EIGENTUEMER[code][1] if code else "ein unbekannter Eigentümer"
 
 def lv95_to_wgs84(y: float, x: float) -> list[float]:
@@ -299,8 +304,8 @@ def bestimme_kategorie(row) -> str:
             bau.append(b)
         elif "Quellenrecht" not in info:
             boden.append(b)
-    stadt_boden = any("01" in b for b in boden)
-    stadt_bau   = any("01" in b for b in bau)
+    stadt_boden = any(bool(re.search(r'\b01\b', b)) for b in boden)
+    stadt_bau   = any(bool(re.search(r'\b01\b', b)) for b in bau)
     if stadt_boden and not bau:               return "Vollbesitz"
     if stadt_boden and bau and not stadt_bau: return "Bodenbesitz"
     if not stadt_boden and stadt_bau:         return "Gebäudebesitz"
@@ -325,9 +330,10 @@ def generiere_besitz_text(besitz_string: str, nummern_string: str) -> str:
     def unique_n(items): return " sowie ".join(dict.fromkeys(eigentuemer_nominativ(b) for b in items))
 
     if quelle:
+        boden_dativ = eigentuemer_dativ(boden[0]) if boden else "einem unbekannten Eigentümer"
         return (
             f"<strong>QUELLENRECHT</strong><br><br>"
-            f"Der Grund und Boden gehört <strong>{eigentuemer_dativ(boden[0])}</strong>. "
+            f"Der Grund und Boden gehört <strong>{boden_dativ}</strong>. "
             f"Jedoch besitzt <strong>{eigentuemer_nominativ(quelle[0])}</strong> "
             f"hier ein Quellenrecht zur Wassernutzung."
         )
@@ -354,11 +360,13 @@ def generiere_besitz_text(besitz_string: str, nummern_string: str) -> str:
             f"<strong>GRENZFALL / MITBESITZ / STOCKWERKEIGENTUM</strong><br><br>"
             f"Dieses Objekt gehört <strong>{unique_d(boden)}</strong> gemeinsam."
         )
-    return (
-        f"<strong>VOLLEIGENTUM</strong><br><br>"
-        f"Sowohl der Grund und Boden als auch das darauf stehende Gebäude gehören "
-        f"vollumfänglich <strong>{eigentuemer_dativ(boden[0])}</strong>."
-    )
+    if boden:
+        return (
+            f"<strong>VOLLEIGENTUM</strong><br><br>"
+            f"Sowohl der Grund und Boden als auch das darauf stehende Gebäude gehören "
+            f"vollumfänglich <strong>{eigentuemer_dativ(boden[0])}</strong>."
+        )
+    return "Keine Daten verfügbar."
 
 
 # ── 6. DATEN LADEN ───────────────────────────────────────────────────────────
@@ -369,9 +377,15 @@ def load_data() -> pd.DataFrame | None:
         st.error(f"Datei nicht gefunden: {EXCEL_FILE}")
         return None
     df = pd.read_excel(EXCEL_FILE, sheet_name=SHEET_NAME).fillna("")
-    df['Fläche_Zahl'] = df['Fläche(n)'].str.extract(r'(\d+)')[0].astype(float).fillna(0)
     df['Filter_Kategorie'] = df.apply(bestimme_kategorie, axis=1)
     return df
+
+@st.cache_data
+def load_lottie(path: str) -> dict | None:
+    if not os.path.exists(path):
+        return None
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
 
 @st.cache_data
 def load_geojson_map_data(df: pd.DataFrame) -> list | None:
@@ -421,9 +435,8 @@ if df is None:
     st.stop()
 
 # Logo (Lottie-Animation – volle Breite wegen 1536x280 Canvas)
-if os.path.exists(LOTTIE_FILE):
-    with open(LOTTIE_FILE, encoding="utf-8") as f:
-        lottie_data = json.load(f)
+lottie_data = load_lottie(LOTTIE_FILE)
+if lottie_data:
     st_lottie(lottie_data, height=100, loop=True, quality="high", key="logo")
 
 st.markdown("<div class='main-title'>Wie viel Stadt besitzt die Stadt?</div>", unsafe_allow_html=True)
@@ -432,16 +445,18 @@ st.markdown("<div class='title-subtext'>Suchportal für den Immobilienbesitz der
 t1, t2 = st.tabs(["🔍 Suche", "Interaktive Karte"])
 
 # ── Tab 1: Suche ─────────────────────────────────────────────────────────────
+
+def clear_search():
+    st.session_state.search_input = ""
+    st.session_state.results_limit = 20
+
 with t1:
-    search = st.text_input(
+    st.text_input(
         "Suche",
         placeholder="Strasse und Hausnummer",
         label_visibility="collapsed",
         key="search_input",
     )
-
-    def clear_search():
-        st.session_state.search_input = ""
 
     col_btn1, col_btn2, _ = st.columns([1, 1, 3])
     with col_btn1:
@@ -456,9 +471,11 @@ with t1:
 
     def _sync_radio():
         st.session_state.filter_mode = st.session_state._f_radio
+        st.session_state.results_limit = 20
 
     def _sync_select():
         st.session_state.filter_mode = st.session_state._f_select
+        st.session_state.results_limit = 20
 
     st.radio(
         "Filter", FILTER_OPTIONEN, index=cur_idx, horizontal=True,
@@ -496,7 +513,7 @@ with t1:
         } catch(e) {}
     })();
     </script>
-    """, height=0)
+    """, height=1)
 
     f_mode = st.session_state.filter_mode
     hinweis_key = next((k for k in FILTER_HINWEISE if k in f_mode), "Alle Adressen")
