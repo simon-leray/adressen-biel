@@ -14,7 +14,7 @@ col_space, col_toggle = st.columns([5, 1.5])
 with col_toggle:
     dark_mode = st.toggle("Dark Mode", value=False)
 
-# --- 3. CSS DESIGN (INKL. CHIP-BUTTONS) ---
+# --- 3. CSS DESIGN (INKL. DROPDOWN / SELECTBOX STYLING) ---
 base_css = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -32,12 +32,18 @@ base_css = """
     max-width: 850px;
 }
 
-.stTextInput > div > div > input {
+/* --- NEU: Selectbox (Dropdown) Styling --- */
+div[data-baseweb="select"] > div {
     border-radius: 12px;
-    padding: 1rem 1.5rem;
     background-color: #FFFFFF !important;
     border: 1px solid #EAEAEA !important;
-    color: #111111 !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+    padding: 0.3rem 0.5rem;
+    cursor: text;
+}
+div[data-baseweb="select"] span {
+    font-size: 1.05rem;
+    color: #111111;
 }
 
 div[data-testid="stExpander"] {
@@ -69,7 +75,7 @@ div[data-testid="stExpander"] {
 
 .stTabs [aria-selected="true"] { color: #111111 !important; border-bottom: 2px solid #111111 !important; }
 
-/* FILTER RADIO BUTTONS ZU CHIPS MACHEN */
+/* Filter Buttons Styling */
 .stRadio [data-testid="stWidgetLabel"] { display: none; }
 div[role="radiogroup"] { gap: 10px !important; }
 
@@ -83,22 +89,15 @@ div[role="radiogroup"] > label {
     transition: all 0.2s ease;
 }
 
-div[role="radiogroup"] > label > div:first-child {
-    display: none !important; /* Versteckt den runden Punkt */
-}
+div[role="radiogroup"] > label > div:first-child { display: none !important; }
+div[role="radiogroup"] > label p { margin: 0 !important; font-size: 0.9rem !important; font-weight: 500 !important; }
 
-div[role="radiogroup"] > label p {
-    margin: 0 !important; font-size: 0.9rem !important; font-weight: 500 !important;
-}
-
-/* Aktiver Zustand (Ausgewählt) Light Mode */
+/* Aktiver Zustand Filter Light Mode */
 div[role="radiogroup"] > label:has(input:checked) {
     background-color: #111111 !important;
     border-color: #111111 !important;
 }
-div[role="radiogroup"] > label:has(input:checked) p {
-    color: #FFFFFF !important;
-}
+div[role="radiogroup"] > label:has(input:checked) p { color: #FFFFFF !important; }
 </style>
 """
 
@@ -106,6 +105,13 @@ dark_css = """
 <style>
 [data-testid="stAppViewContainer"], .stApp { background-color: #000000 !important; }
 div[data-testid="stWidgetLabel"] p { color: #FFFFFF !important; }
+
+/* Selectbox Dark Mode */
+div[data-baseweb="select"] > div {
+    background-color: #1C1C1E !important;
+    border-color: #333336 !important;
+}
+div[data-baseweb="select"] span { color: #F5F5F7 !important; }
 
 div[data-testid="stExpander"], 
 div[data-testid="stExpander"] *, 
@@ -115,11 +121,8 @@ div[data-testid="stExpanderDetails"] {
 }
 
 div[data-testid="stExpander"] summary p, .main-title, div[data-testid="stMetricValue"], 
-.info-text, .value-text, div[data-testid="stExpander"] strong { 
-    color: #F5F5F7 !important; 
-}
+.info-text, .value-text, div[data-testid="stExpander"] strong { color: #F5F5F7 !important; }
 
-.stTextInput > div > div > input { background-color: #1C1C1E !important; border-color: #333336 !important; color: #F5F5F7 !important; }
 .fact-card { background-color: #1C1C1E !important; border-color: #333336 !important; }
 .methodology-box { background-color: #1C1C1E !important; color: #A1A1A6 !important; }
 hr { border-top-color: #333336 !important; }
@@ -131,14 +134,11 @@ div[role="radiogroup"] > label {
 }
 div[role="radiogroup"] > label p { color: #F5F5F7 !important; }
 
-/* Aktiver Zustand (Ausgewählt) Dark Mode */
 div[role="radiogroup"] > label:has(input:checked) {
     background-color: #FFFFFF !important;
     border-color: #FFFFFF !important;
 }
-div[role="radiogroup"] > label:has(input:checked) p {
-    color: #111111 !important;
-}
+div[role="radiogroup"] > label:has(input:checked) p { color: #111111 !important; }
 </style>
 """
 
@@ -226,7 +226,14 @@ try:
             elif f_mode == "Stadt: Gebäude (Baurecht übernommen)":
                 st.markdown("<p style='color:#888888; font-size:0.9rem; margin-top:-10px; margin-bottom:20px;'>Der Boden gehört jemand anderem, aber die Stadt Biel hat darauf ein eigenes Gebäude im Baurecht errichtet.</p>", unsafe_allow_html=True)
 
-            search = st.text_input("Suche", placeholder="Strasse oder Hausnummer eingeben...", label_visibility="collapsed")
+            # --- SUCHVORSCHLÄGE GENERIEREN ---
+            # Wir trennen die Hausnummern ab, um reine Strassennamen zu erhalten
+            streets = df['Adresse'].str.split(r'\d').str[0].str.strip().unique().tolist()
+            exact_addresses = df['Adresse'].unique().tolist()
+            # Kombination aus reinen Strassen und exakten Adressen (alphabetisch sortiert)
+            search_options = [""] + sorted(list(set(streets + exact_addresses)))
+
+            search = st.selectbox("Suche", options=search_options, index=0, placeholder="Tippe eine Strasse oder Hausnummer ein...", label_visibility="collapsed")
             
             # --- FILTER LOGIK ---
             f_df = df.copy()
@@ -238,9 +245,10 @@ try:
                 f_df = df[~df['Eigentumsverhältnis'].str.contains("01") & df['Grundstücksnummer(n)'].str.contains("01") & df['Grundstücksnummer(n)'].str.contains("Baurecht")]
 
             if search:
-                f_df = f_df[f_df['Adresse'].str.contains(search, case=False)]
+                # Durch startswith finden wir bei "Südstrasse" alle Hausnummern, bei "Südstrasse 15" nur die exakte Adresse.
+                f_df = f_df[f_df['Adresse'].str.startswith(search)]
 
-            # --- ANZEIGE-LOGIK (Leere Liste bei "Alle Adressen" ohne Suche) ---
+            # --- ANZEIGE-LOGIK ---
             show_results = True
             if f_mode == "Alle Adressen" and search.strip() == "":
                 show_results = False
@@ -253,7 +261,6 @@ try:
             if "last_search" not in st.session_state:
                 st.session_state.last_search = search
 
-            # Reset Counter, wenn sich etwas ändert
             if st.session_state.last_filter != f_mode or st.session_state.last_search != search:
                 st.session_state.load_count = 20
                 st.session_state.last_filter = f_mode
@@ -282,8 +289,7 @@ try:
                 else:
                     st.markdown("<p class='title-subtext' style='margin-top: 2rem;'>Keine Einträge für diese Auswahl gefunden.</p>", unsafe_allow_html=True)
             else:
-                # Platzhalter, wenn "Alle Adressen" aktiv ist, aber noch nichts gesucht wurde
-                st.info("Bitte geben Sie einen Suchbegriff ein, um das gesamte Register zu durchsuchen, oder wählen Sie einen spezifischen Filter aus.")
+                st.info("Tippen Sie einen Strassennamen ein oder wählen Sie einen Filter aus, um Einträge anzuzeigen.")
 
         # --- TAB 2: FACTS & FIGURES ---
         with t2:
