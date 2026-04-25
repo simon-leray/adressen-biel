@@ -114,54 +114,36 @@ def load_geojson_map_data(df):
                     if isinstance(val, dict) and val.get("type") == "FeatureCollection":
                         features.extend(val.get("features", []))
 
-        # Erweitertes Mapping: Kategorie UND Adresse speichern
         mapping = {}
         for _, row in df.iterrows():
             clean_nums = re.findall(r'\d+', str(row['Grundstücksnummer(n)']))
             kat = row['Filter_Kategorie']
-            adr = str(row['Adresse']).strip()
-            
             for n in clean_nums:
-                n_str = str(n)
-                if n_str not in mapping:
-                    mapping[n_str] = {'kat': kat, 'adresse': adr}
-                else:
-                    # Falls mehrere Adressen auf derselben Parzelle liegen, mit | trennen
-                    if adr and adr not in mapping[n_str]['adresse']:
-                        if mapping[n_str]['adresse']:
-                            mapping[n_str]['adresse'] += f" | {adr}"
-                        else:
-                            mapping[n_str]['adresse'] = adr
+                mapping[str(n)] = kat
         
         for f in features:
             f['geometry']['coordinates'] = recursive_convert(f['geometry']['coordinates'])
             gn = str(f["properties"].get("grst_nummer", "")).strip()
             
-            # Daten aus Excel ziehen (falls vorhanden)
-            map_data = mapping.get(gn, None)
-            kat = map_data['kat'] if map_data else None
-            adr = map_data['adresse'] if map_data and map_data['adresse'] else "Keine Adresse hinterlegt"
-            
-            f["properties"]["adresse"] = adr
+            kat = mapping.get(gn, None)
 
-            # Fallback, falls nicht im Excel
             if kat is None:
                 egr = str(f["properties"].get("eigentuemer_gr", ""))
                 if egr == "01": kat = "Vollbesitz"
                 else: kat = "Andere"
 
-            # FARBEN-LOGIK AKTUALISIERT NACH DEINEM WUNSCH
+            # FARBEN-LOGIK AKTUALISIERT NACH DEINEM WUNSCH (ohne Alpha-Kanal für reine Farben)
             if kat == "Vollbesitz":
-                f["properties"]["fill_color"] = [0, 122, 255, 200]    # Blau
+                f["properties"]["fill_color"] = [0, 122, 255]    # Blau
                 f["properties"]["kat_name"] = "Vollbesitz Stadt"
             elif kat == "Bodenbesitz":
-                f["properties"]["fill_color"] = [90, 200, 250, 200]   # Hellblau
+                f["properties"]["fill_color"] = [90, 200, 250]   # Hellblau
                 f["properties"]["kat_name"] = "Bodenbesitz Stadt (Baurecht abgegeben)"
             elif kat == "Andere":
-                f["properties"]["fill_color"] = [255, 149, 0, 200]    # Orange
+                f["properties"]["fill_color"] = [255, 149, 0]    # Orange
                 f["properties"]["kat_name"] = "Privat / Andere"
             elif kat == "Gebäudebesitz":
-                f["properties"]["fill_color"] = [255, 179, 64, 200]   # Hellorange / Gelb-Orange
+                f["properties"]["fill_color"] = [255, 179, 64]   # Hellorange
                 f["properties"]["kat_name"] = "Gebäudebesitz Stadt (Baurecht erhalten)"
                 
         return features
@@ -236,7 +218,6 @@ try:
         with t2:
             st.write("")
             
-            # --- AKTUALISIERTE LEGENDE ---
             st.markdown("""
             <div class='legend-box'>
                 <div class='legend-item'><div class='legend-color' style='background-color:#007AFF;'></div> Vollbesitz (Stadt)</div>
@@ -252,7 +233,7 @@ try:
                     layer = pdk.Layer(
                         "GeoJsonLayer", 
                         data={"type": "FeatureCollection", "features": geo}, 
-                        opacity=0.85, 
+                        opacity=0.75, # Opacity etwas runter, damit die Strassennamen von unten durchschimmern 
                         stroked=True, 
                         filled=True, 
                         get_fill_color="properties.fill_color", 
@@ -261,13 +242,16 @@ try:
                         pickable=True
                     )
                     
-                    # --- AKTUALISIERTER TOOLTIP ---
+                    # Hier setzen wir "carto" ein, damit die Karte darunter s/w ist und die Labels sauber zu sehen sind
+                    map_style = "dark" if dark_mode else "light"
+                    
                     st.pydeck_chart(pdk.Deck(
+                        map_provider="carto",
+                        map_style=map_style,
                         layers=[layer], 
                         initial_view_state=pdk.ViewState(latitude=47.1368, longitude=7.2468, zoom=13.5), 
-                        map_style="mapbox://styles/mapbox/dark-v10" if dark_mode else "mapbox://styles/mapbox/light-v10", 
                         tooltip={
-                            "html": "<b>Parzelle:</b> {grst_nummer}<br/><b>Adresse:</b> {adresse}<br/><b>Kategorie:</b> {kat_name}",
+                            "html": "<b>Parzelle:</b> {grst_nummer}<br/><b>Kategorie:</b> {kat_name}",
                             "style": {"backgroundColor": "steelblue", "color": "white"}
                         }
                     ))
