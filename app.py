@@ -101,8 +101,8 @@ st.markdown("""
 /* Unser äusserer Container: Border + Schatten */
 .stTextInput > div > div {
     border-radius: 12px !important;
-    border: 1px solid #EAEAEA !important;
-    box-shadow: 0 8px 30px rgba(0,0,0,0.06) !important;
+    border: 1px solid #CCCCCC !important;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.10) !important;
     background-color: #FFFFFF !important;
     margin-bottom: 8px;
 }
@@ -111,8 +111,9 @@ st.markdown("""
     border-color: #CCCCCC !important;
 }
 /* Text-Cursor beim Hovern */
-.stTextInput > div > div,
-.stTextInput input {
+.stTextInput,
+.stTextInput *,
+.stTextInput > div > div {
     cursor: text !important;
 }
 /* Input-Text */
@@ -162,8 +163,8 @@ div[data-testid="stExpander"] {
 .label-text {
     font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
     letter-spacing: 0.08em; color: #86868B !important;
-    margin-bottom: 0.15rem;
-    margin-top: 0;
+    margin-top: 0.9rem;
+    margin-bottom: 0.1rem;
     display: block;
 }
 .methodology-box {
