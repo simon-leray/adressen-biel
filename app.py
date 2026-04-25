@@ -166,6 +166,25 @@ div[data-testid="stExpander"] summary {
         flex: 1 1 calc(50% - 8px) !important;
         min-width: 0 !important;
     }
+    /* Selectbox: gleicher Abstand und gleiche Optik wie die Buttons */
+    [data-testid="stSelectbox"] {
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+        padding-bottom: 0 !important;
+    }
+    [data-testid="stSelectbox"] > div {
+        margin-top: 0 !important;
+    }
+    [data-testid="stSelectbox"] [data-baseweb="select"] > div:first-child {
+        background-color: #FFFFFF !important;
+        border: 1px solid rgba(49, 51, 63, 0.2) !important;
+        border-radius: 0.5rem !important;
+        min-height: 38px !important;
+        box-shadow: none !important;
+    }
+    [data-testid="stSelectbox"] [data-baseweb="select"] > div:first-child:hover {
+        border-color: rgba(49, 51, 63, 0.4) !important;
+    }
 }
 .label-text {
     font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
