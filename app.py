@@ -70,8 +70,6 @@ if "disclaimer_shown" not in st.session_state:
     st.session_state.disclaimer_shown = False
 if "results_limit" not in st.session_state:
     st.session_state.results_limit = 20
-if "map_rendered" not in st.session_state:
-    st.session_state.map_rendered = False
 
 # ── 3. CSS ───────────────────────────────────────────────────────────────────
 
@@ -113,11 +111,23 @@ div[data-testid="stExpander"] {
 }
 .main-title {
     text-align: center; font-weight: 700; font-size: 2.8rem;
+    line-height: 1.15;
     letter-spacing: -0.03em; margin-top: 1rem; color: #111111 !important;
 }
 .title-subtext {
     text-align: center; color: #888888 !important;
     margin-bottom: 2rem; font-size: 1.05rem;
+}
+@media (max-width: 768px) {
+    .main-title {
+        font-size: 2rem;
+        line-height: 1.1;
+    }
+    [data-testid="stImage"] img {
+        max-width: 160px !important;
+        margin: 0 auto;
+        display: block;
+    }
 }
 .label-text {
     font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
@@ -429,7 +439,10 @@ with t1:
                 st.rerun()
 
 # ── Tab 2: Karte ─────────────────────────────────────────────────────────────
-with t2:
+@st.fragment
+def render_karte():
+    """Fragment: rendert nur neu wenn interne Widgets sich ändern,
+    nicht bei Filter-/Sucheingaben in Tab 1."""
     st.markdown("""
     <div class='legend-box'>
         <div class='legend-item'>
@@ -451,16 +464,8 @@ with t2:
     </div>
     """, unsafe_allow_html=True)
 
-    if not st.session_state.map_rendered:
-        if st.button("🗺️ Karte laden"):
-            st.session_state.map_rendered = True
-            st.rerun()
-
-    if st.session_state.map_rendered:
-        with st.spinner("Lade Karte..."):
-            geo = load_geojson_map_data(df)
-    else:
-        geo = None
+    with st.spinner("Lade Karte..."):
+        geo = load_geojson_map_data(df)
 
     if geo:
         st.pydeck_chart(pdk.Deck(
@@ -483,6 +488,9 @@ with t2:
                 "style": {"backgroundColor": "steelblue", "color": "white"},
             },
         ))
+
+with t2:
+    render_karte()
 
 # ── 9. FOOTER ────────────────────────────────────────────────────────────────
 st.markdown(
