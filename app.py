@@ -32,7 +32,6 @@ base_css = """
     max-width: 850px;
 }
 
-/* Suchfeld Hero-Style */
 .stTextInput > div > div > input {
     border-radius: 12px;
     padding: 1.2rem 1.5rem;
@@ -73,7 +72,6 @@ div[data-testid="stExpander"] {
 
 .stTabs [aria-selected="true"] { color: #111111 !important; border-bottom: 2px solid #111111 !important; }
 
-/* Filter Buttons Styling (Chips) */
 .stRadio [data-testid="stWidgetLabel"] { display: none; }
 div[role="radiogroup"] { 
     gap: 8px !important; 
@@ -95,7 +93,6 @@ div[role="radiogroup"] > label {
 div[role="radiogroup"] > label > div:first-child { display: none !important; }
 div[role="radiogroup"] > label p { margin: 0 !important; font-size: 0.85rem !important; font-weight: 500 !important; }
 
-/* Aktiver Zustand Filter Light Mode */
 div[role="radiogroup"] > label:has(input:checked) {
     background-color: #111111 !important;
     border-color: #111111 !important;
@@ -124,7 +121,6 @@ div[data-testid="stExpander"] summary p, .main-title, div[data-testid="stMetricV
 .methodology-box { background-color: #1C1C1E !important; color: #A1A1A6 !important; }
 hr { border-top-color: #333336 !important; }
 
-/* Filter Buttons Dark Mode */
 div[role="radiogroup"] > label {
     background-color: #1C1C1E !important;
     border-color: #333336 !important;
@@ -141,7 +137,7 @@ div[role="radiogroup"] > label:has(input:checked) p { color: #111111 !important;
 
 st.markdown(base_css + (dark_css if dark_mode else ""), unsafe_allow_html=True)
 
-# --- 4. DATEN-LOGIK ---
+# --- 4. DATEN-LOGIK & FEHLERFREIE KATEGORISIERUNG ---
 @st.cache_data
 def load_data():
     if not os.path.exists('Biel_Adressregister_Final.xlsx'):
@@ -149,6 +145,38 @@ def load_data():
     df = pd.read_excel('Biel_Adressregister_Final.xlsx', sheet_name='Adress-Verzeichnis')
     df = df.fillna("")
     df['Fläche_Zahl'] = df['Fläche(n)'].str.extract(r'(\d+)').astype(float).fillna(0)
+    
+    # HIER PASSIERT DIE MAGIE: Wir berechnen die Kategorie VORAB für jede Zeile
+    def bestimme_kategorie(row):
+        besitz = str(row['Eigentumsverhältnis']).split(" / ")
+        nummern = str(row['Grundstücksnummer(n)']).split(" / ")
+        boden, bau = [], []
+        
+        for i in range(len(besitz)):
+            b = besitz[i]
+            n = nummern[i] if i < len(nummern) else ""
+            if "Baurecht" in n:
+                bau.append(b)
+            elif "Quellenrecht" not in n:
+                boden.append(b)
+                
+        stadt_boden = any("01" in b for b in boden)
+        stadt_bau = any("01" in b for b in bau)
+        
+        if stadt_boden and not bau:
+            return "Vollbesitz"
+        elif stadt_boden and bau and not stadt_bau:
+            return "Bodenbesitz"
+        elif not stadt_boden and stadt_bau:
+            return "Gebäudebesitz"
+        elif stadt_boden and stadt_bau:
+            # Falls andere Private auch noch Baurechte am städtischen Boden haben
+            if any("01" not in b for b in bau):
+                return "Bodenbesitz"
+            return "Vollbesitz"
+        return "Andere"
+        
+    df['Filter_Kategorie'] = df.apply(bestimme_kategorie, axis=1)
     return df
 
 def bereinige_eigentum_text(text):
@@ -195,7 +223,6 @@ def generiere_besitz_text(besitz_string, nummern_string):
 try:
     df = load_data()
     if df is not None:
-        # Header
         col_l, col_logo, col_r = st.columns([1, 1.5, 1])
         with col_logo:
             logo = "logo_light.png" if dark_mode else "logo_dark.png"
@@ -208,11 +235,8 @@ try:
 
         with t1:
             st.write("")
-            
-            # --- DASHBOARD LAYOUT: SUCHFELD GANZ OBEN ---
             search = st.text_input("Suche", placeholder="Strasse und Hausnummer (z.B. Ring 16)...", label_visibility="collapsed")
             
-            # --- DARUNTER DIE FILTER-CHIPS ---
             filter_options = [
                 "Alle Adressen", 
                 "Vollbesitz der Stadt (Gebäude und Land)", 
@@ -221,7 +245,6 @@ try:
             ]
             f_mode = st.radio("Eigentumstyp", filter_options, horizontal=True, label_visibility="collapsed")
             
-            # Dynamischer Erklärtext für die Filter
             if f_mode == "Alle Adressen":
                 st.markdown("<p style='color:#888888; font-size:0.85rem; margin-top:-10px; margin-bottom:20px;'>💡 Zeigt das gesamte Immobilienregister. <strong>Bitte Suchbegriff eingeben.</strong></p>", unsafe_allow_html=True)
             elif f_mode == "Vollbesitz der Stadt (Gebäude und Land)":
@@ -231,25 +254,22 @@ try:
             elif f_mode == "Gebäudebesitz der Stadt (Land im Baurecht erhalten)":
                 st.markdown("<p style='color:#888888; font-size:0.85rem; margin-top:-10px; margin-bottom:20px;'>💡 Der Boden gehört jemand anderem, aber die Stadt besitzt darauf ein Gebäude (oder Teile davon, z.B. Stockwerkeigentum) im Baurecht.</p>", unsafe_allow_html=True)
 
-            # --- FILTER LOGIK ---
+            # --- NEUE, FEHLERFREIE FILTER LOGIK ---
             f_df = df.copy()
             if f_mode == "Vollbesitz der Stadt (Gebäude und Land)":
-                f_df = f_df[f_df['Eigentumsverhältnis'].str.contains("01", na=False) & ~f_df['Grundstücksnummer(n)'].str.contains("Baurecht", na=False)]
+                f_df = f_df[f_df['Filter_Kategorie'] == "Vollbesitz"]
             elif f_mode == "Bodenbesitz der Stadt (Land im Baurecht abgegeben)":
-                f_df = f_df[f_df['Eigentumsverhältnis'].str.contains("01", na=False) & f_df['Grundstücksnummer(n)'].str.contains("Baurecht", na=False)]
+                f_df = f_df[f_df['Filter_Kategorie'] == "Bodenbesitz"]
             elif f_mode == "Gebäudebesitz der Stadt (Land im Baurecht erhalten)":
-                f_df = f_df[~f_df['Eigentumsverhältnis'].str.contains("01", na=False) & f_df['Grundstücksnummer(n)'].str.contains("01", na=False) & f_df['Grundstücksnummer(n)'].str.contains("Baurecht", na=False)]
+                f_df = f_df[f_df['Filter_Kategorie'] == "Gebäudebesitz"]
 
-            # --- DIE ALTE (EXAKTE) SUCHLOGIK ---
             if search:
                 f_df = f_df[f_df['Adresse'].str.contains(search, case=False, na=False)]
 
-            # --- ANZEIGE-LOGIK ---
             show_results = True
             if f_mode == "Alle Adressen" and search.strip() == "":
                 show_results = False
 
-            # --- PAGINATION LOGIK ---
             if "load_count" not in st.session_state:
                 st.session_state.load_count = 20
             if "last_filter" not in st.session_state:
@@ -262,7 +282,6 @@ try:
                 st.session_state.last_filter = f_mode
                 st.session_state.last_search = search
 
-            # --- RENDER ADRESSEN ---
             if show_results:
                 if not f_df.empty:
                     st.markdown(f"<div style='margin-bottom:1rem; opacity:0.6; font-size:0.8rem;'>{len(f_df)} Treffer gefunden</div>", unsafe_allow_html=True)
@@ -287,22 +306,23 @@ try:
             else:
                 st.info("Bitte geben Sie eine Adresse ein oder wählen Sie einen Filter aus, um das Register zu durchsuchen.")
 
-        # --- TAB 2: FACTS & FIGURES ---
+        # --- TAB 2: FACTS & FIGURES (AKTUALISIERT AUF NEUE KATEGORIEN) ---
         with t2:
             st.write("")
-            stadt_df = df[df['Eigentumsverhältnis'].str.contains("01", na=False)]
-            baurecht_ab = stadt_df[stadt_df['Grundstücksnummer(n)'].str.contains("Baurecht", na=False)]
-            reiner_besitz = stadt_df[~stadt_df['Grundstücksnummer(n)'].str.contains("Baurecht", na=False)]
+            stadt_voll = df[df['Filter_Kategorie'] == "Vollbesitz"]
+            stadt_boden = df[df['Filter_Kategorie'] == "Bodenbesitz"]
             
-            total_flaeche_stadt = stadt_df['Fläche_Zahl'].sum()
+            # Gesamtfläche Boden, der der Stadt gehört = Vollbesitz + Bodenbesitz (Baurecht abgegeben)
+            total_flaeche_boden = stadt_voll['Fläche_Zahl'].sum() + stadt_boden['Fläche_Zahl'].sum()
+            baurecht_ab_flaeche = stadt_boden['Fläche_Zahl'].sum()
             
             c1, c2 = st.columns(2)
             with c1:
-                st.markdown(f"<div class='fact-card'><span class='label-text'>Stadtbesitz Total</span><br><div style='font-size:2.2rem;'>{int(total_flaeche_stadt):,} m²</div><span>ca. {int(total_flaeche_stadt/7140)} Fussballfelder.</span></div>", unsafe_allow_html=True)
-                st.markdown(f"<div class='fact-card'><span class='label-text'>Strategisches Baurecht</span><br><div style='font-size:2.2rem;'>{int(baurecht_ab['Fläche_Zahl'].sum()):,} m²</div><span>Von der Stadt Biel an Dritte abgegebene Baurechte.</span></div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='fact-card'><span class='label-text'>Stadtbesitz Total (Boden)</span><br><div style='font-size:2.2rem;'>{int(total_flaeche_boden):,} m²</div><span>ca. {int(total_flaeche_boden/7140)} Fussballfelder.</span></div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='fact-card'><span class='label-text'>Strategisches Baurecht</span><br><div style='font-size:2.2rem;'>{int(baurecht_ab_flaeche):,} m²</div><span>Von der Stadt an Dritte abgegebene Baurechtsfläche.</span></div>", unsafe_allow_html=True)
             with c2:
-                st.markdown(f"<div class='fact-card'><span class='label-text'>Areal-Anteil</span><br><div style='font-size:2.2rem;'>{total_flaeche_stadt/df['Fläche_Zahl'].sum()*100:.1f}%</div><span>am gesamten Stadtgebiet.</span></div>", unsafe_allow_html=True)
-                st.markdown(f"<div class='fact-card'><span class='label-text'>Volleigentum</span><br><div style='font-size:2.2rem;'>{len(reiner_besitz)}</div><span>Adressen ohne Baurechts-Einschränkung.</span></div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='fact-card'><span class='label-text'>Areal-Anteil</span><br><div style='font-size:2.2rem;'>{total_flaeche_boden/df['Fläche_Zahl'].sum()*100:.1f}%</div><span>am gesamten erfassten Register.</span></div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='fact-card'><span class='label-text'>Volleigentum</span><br><div style='font-size:2.2rem;'>{len(stadt_voll)}</div><span>Adressen ohne Fremdnutzung durch Baurecht.</span></div>", unsafe_allow_html=True)
 
         st.markdown("<div class='methodology-box'><strong>Methodik:</strong> Daten basieren auf dem WebGIS Biel (26.11.2025). Abgleich mit map.geo.admin.ch über amtliche Grundstücksnummern. Ersetzt kein amtliches Grundbuchdokument.</div>", unsafe_allow_html=True)
 
