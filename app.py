@@ -86,36 +86,30 @@ st.markdown("""
     padding-bottom: 4rem;
     max-width: 900px;
 }
-/* Suchfeld – alle Wrapper inkl. alle Kinder */
+/* Suchfeld */
 [data-testid="stTextInput"],
-[data-testid="stTextInput"] *,
 [data-testid="stTextInput"] > div,
 [data-testid="stTextInput"] > div > div {
     overflow: visible !important;
-    cursor: text !important;
 }
-/* Streamlits internen base-input: kein eigener Border */
 [data-testid="stTextInput"] div[data-baseweb="base-input"] {
     border: none !important;
     outline: none !important;
     box-shadow: none !important;
     background-color: #FFFFFF !important;
-    cursor: text !important;
 }
-/* Äusserer Container: unser Border */
 [data-testid="stTextInput"] > div > div {
     border-radius: 12px !important;
-    border: 1.5px solid #C8C8C8 !important;
+    border: 1.5px solid #BBBBBB !important;
     box-shadow: none !important;
     background-color: #FFFFFF !important;
     margin-bottom: 8px;
-    cursor: text !important;
+    transition: border-color 0.2s, box-shadow 0.2s;
 }
-/* Fokus: etwas dunklerer Rand */
 [data-testid="stTextInput"] > div > div:focus-within {
-    border-color: #999999 !important;
+    border-color: #555555 !important;
+    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.08) !important;
 }
-/* Das eigentliche Input-Element */
 [data-testid="stTextInput"] input {
     font-size: 1.2rem !important;
     padding: 1.2rem 1.5rem !important;
@@ -124,7 +118,6 @@ st.markdown("""
     outline: none !important;
     box-shadow: none !important;
     background: transparent !important;
-    cursor: text !important;
 }
 div[data-testid="stExpander"] {
     border-radius: 12px;
@@ -214,17 +207,6 @@ div[role="radiogroup"] > label:has(input:checked) p { color: #FFFFFF !important;
     text-decoration: none; font-weight: 500;
 }
 </style>
-<script>
-// Setzt cursor:text auf alle Elemente innerhalb des Suchfelds
-function fixSearchCursor() {
-    const inputs = document.querySelectorAll('[data-testid="stTextInput"] *');
-    inputs.forEach(el => { el.style.setProperty('cursor', 'text', 'important'); });
-}
-// Beim Laden und nach Streamlit-Rerenders
-document.addEventListener('DOMContentLoaded', fixSearchCursor);
-setTimeout(fixSearchCursor, 500);
-setTimeout(fixSearchCursor, 1500);
-</script>
 """, unsafe_allow_html=True)
 
 # ── 4. METHODIK TEXT ─────────────────────────────────────────────────────────
