@@ -65,7 +65,7 @@ FILTER_HINWEISE = {
 
 st.set_page_config(page_title="Immobilienregister Biel", layout="wide")
 
-# Session-State initialisieren
+# Session-State initialisieren (immer ganz oben, vor dem ersten Rendering)
 if "results_limit" not in st.session_state:
     st.session_state.results_limit = 20
 
@@ -91,33 +91,21 @@ st.markdown("""
 .stTextInput > div > div {
     overflow: visible !important;
 }
-/* Suchfeld Design & Fokus-Fix */
 .stTextInput > div > div > input {
     border-radius: 12px;
-    padding: 1rem 1.5rem;
+    padding: 1.2rem 1.5rem;
     font-size: 1.2rem;
     background-color: #FFFFFF !important;
     border: 1px solid #EAEAEA !important;
     color: #111111 !important;
     box-shadow: 0 8px 30px rgba(0,0,0,0.06);
     margin-bottom: 8px;
-    transition: all 0.2s ease;
 }
-.stTextInput > div > div > input:focus {
-    outline: none !important;
-    border-color: #007AFF !important;
-    box-shadow: 0 0 0 3px rgba(0,122,255,0.1);
-}
-/* Kompakterer Expander */
 div[data-testid="stExpander"] {
     border-radius: 12px;
-    margin-bottom: 0.75rem !important;
+    margin-bottom: 1rem;
     background-color: #FFFFFF !important;
     border: 1px solid #EAEAEA !important;
-}
-div[data-testid="stExpanderDetails"] {
-    padding-top: 0rem !important;
-    padding-bottom: 1rem !important;
 }
 .main-title {
     text-align: center; font-weight: 700; font-size: 2.8rem;
@@ -141,7 +129,7 @@ div[data-testid="stExpanderDetails"] {
 }
 .label-text {
     font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
-    letter-spacing: 0.08em; color: #86868B !important; margin-bottom: 0.25rem;
+    letter-spacing: 0.08em; color: #86868B !important; margin-bottom: 0.5rem;
 }
 .methodology-box {
     margin-top: 4rem; padding: 2rem; border-radius: 12px;
@@ -412,9 +400,8 @@ with t1:
         )
         for _, r in f_df.iloc[:st.session_state.results_limit].iterrows():
             with st.expander(str(r['Adresse'])):
-                # Kompakterer Textblock
                 st.markdown(
-                    f"<div style='margin-bottom:-10px;'>{generiere_besitz_text(r['Eigentumsverhältnis'], r['Grundstücksnummer(n)'])}</div>",
+                    generiere_besitz_text(r['Eigentumsverhältnis'], r['Grundstücksnummer(n)']),
                     unsafe_allow_html=True,
                 )
                 maps_query = urllib.parse.quote(f"{r['Adresse']}, Biel")
@@ -423,17 +410,12 @@ with t1:
                     f' target="_blank" class="maps-link">📍 Auf Google Maps anzeigen</a>',
                     unsafe_allow_html=True,
                 )
-                
-                # Kompakte Trennlinie
-                st.markdown("<div style='margin: 8px 0;'><hr style='margin:0; border:0; border-top:1px solid #eee;'></div>", unsafe_allow_html=True)
-                
+                st.write("---")
                 c1, c2, c3 = st.columns(3)
                 eigentuem_clean = re.sub(r'\d{2}:\s*', '', str(r['Eigentumsverhältnis']))
-                
-                # Kompakter gerenderte Metadaten
-                c1.markdown(f"<div class='label-text'>Parzelle</div><div style='font-size:0.9rem;'>{r['Grundstücksnummer(n)']}</div>", unsafe_allow_html=True)
-                c2.markdown(f"<div class='label-text'>Eigentum</div><div style='font-size:0.9rem;'>{eigentuem_clean}</div>", unsafe_allow_html=True)
-                c3.markdown(f"<div class='label-text'>Fläche</div><div style='font-size:0.9rem;'>{r['Fläche(n)']}</div>", unsafe_allow_html=True)
+                c1.markdown(f"<div class='label-text'>Parzelle</div>{r['Grundstücksnummer(n)']}", unsafe_allow_html=True)
+                c2.markdown(f"<div class='label-text'>Eigentum</div>{eigentuem_clean}", unsafe_allow_html=True)
+                c3.markdown(f"<div class='label-text'>Fläche</div>{r['Fläche(n)']}", unsafe_allow_html=True)
 
         if len(f_df) > st.session_state.results_limit:
             if st.button("Weitere laden"):
@@ -443,6 +425,8 @@ with t1:
 # ── Tab 2: Karte ─────────────────────────────────────────────────────────────
 @st.fragment
 def render_karte():
+    """Fragment: rendert nur neu wenn interne Widgets sich ändern,
+    nicht bei Filter-/Sucheingaben in Tab 1."""
     st.markdown("""
     <div class='legend-box'>
         <div class='legend-item'>
