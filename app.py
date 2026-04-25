@@ -67,9 +67,8 @@ div[data-testid="stExpander"] {
     margin-top: 4rem; padding: 2rem; border-radius: 12px; background-color: #F2F2F7; font-size: 0.9rem; color: #555555;
 }
 
-.filter-description {
-    font-size: 0.85rem; color: #888888; margin-top: -15px; margin-bottom: 20px;
-}
+.stTabs [aria-selected="true"] { color: #111111 !important; border-bottom: 2px solid #111111 !important; }
+.stRadio [data-testid="stWidgetLabel"] { display: none; }
 </style>
 """
 
@@ -99,7 +98,7 @@ hr { border-top-color: #333336 !important; }
 
 st.markdown(base_css + (dark_css if dark_mode else ""), unsafe_allow_html=True)
 
-# --- 4. DATEN-LOGIK ---
+# --- 4. DATEN-LOGIK & DETAILLIERTE BESCHREIBUNGEN ---
 @st.cache_data
 def load_data():
     if not os.path.exists('Biel_Adressregister_Final.xlsx'):
@@ -114,40 +113,56 @@ def bereinige_eigentum_text(text):
 
 def generiere_besitz_text(besitz_string, nummern_string):
     if not besitz_string: return "Keine detaillierten Daten verfügbar."
-    besitzer_liste = str(besitz_string).split(" / ")
-    info_liste = str(nummern_string).split(" / ")
-    boden, bau, quelle = [], [], []
     
-    for i in range(len(besitzer_liste)):
-        b, info = besitzer_liste[i], info_liste[i] if i < len(info_liste) else ""
-        if "Quellenrecht" in info: quelle.append(b)
-        elif "Baurecht" in info: bau.append(b)
-        else: boden.append(b)
-
-    def d(text):
+    def name_dativ(text):
         t = str(text).lower()
         if "01" in t: return "der Stadt Biel"
         if "03" in t: return "einer Privatperson oder privaten Firma"
-        if "02" in t: return "einer öffentlichen Institution"
+        if "02" in t: return "einer öffentlichen Institution (Bund, Kanton, SBB oder Ähnliche)"
         return "einem unbekannten Eigentümer"
 
-    if quelle:
-        return f"<strong>QUELLENRECHT</strong><br><br>Der Boden gehört <strong>{d(boden[0])}</strong>. Jedoch besitzt eine andere Partei hier ein Quellenrecht zur Wassernutzung."
+    def name_nominativ(text):
+        t = str(text).lower()
+        if "01" in t: return "die Stadt Biel"
+        if "03" in t: return "eine Privatperson oder private Firma"
+        if "02" in t: return "eine öffentliche Institution (Bund, Kanton, SBB oder Ähnliche)"
+        return "ein unbekannter Eigentümer"
+
+    besitzer_liste = str(besitz_string).split(" / ")
+    info_liste = str(nummern_string).split(" / ")
     
-    if bau:
-        s_boden = any("01" in str(b) for b in boden)
-        s_bau = any("01" in str(b) for b in bau)
-        if s_boden and not s_bau:
-            return f"<strong>BAURECHT (ABGEGEBEN)</strong><br><br>Der Boden gehört <strong>{d(boden[0])}</strong>. Die Stadt hat jedoch das Gebäude im Baurecht an Dritte abgegeben. Diese besitzen das Gebäude, während die Stadt Kontrolle über das Land behält."
-        if s_bau and not s_boden:
-            return f"<strong>BAURECHT (ÜBERNOMMEN)</strong><br><br>Der Boden gehört einem Dritten. Die <strong>Stadt Biel</strong> besitzt hier jedoch das Gebäude im Baurecht und nutzt die Fläche."
-        return f"<strong>BAURECHT</strong><br><br>Hier besteht ein komplexes Baurechtsverhältnis zwischen mehreren Parteien."
+    boden_besitzer, bau_besitzer, quelle_besitzer = [], [], []
+    
+    for i in range(len(besitzer_liste)):
+        b = besitzer_liste[i]
+        info = info_liste[i] if i < len(info_liste) else ""
+        if "Quellenrecht" in info: quelle_besitzer.append(b)
+        elif "Baurecht" in info: bau_besitzer.append(b)
+        else: boden_besitzer.append(b)
 
-    if len(boden) > 1:
-        txt = " sowie ".join(list(dict.fromkeys([d(b) for b in boden])))
-        return f"<strong>GRENZFALL / MITBESITZ</strong><br><br>Dieses Objekt steht auf mehreren Parzellen oder gehört <strong>{txt}</strong> gemeinsam."
+    if quelle_besitzer:
+        wer_quelle = name_nominativ(quelle_besitzer[0])
+        if boden_besitzer:
+            wer_boden = name_dativ(boden_besitzer[0])
+            return f"<strong>QUELLENRECHT</strong><br><br>Der Grund und Boden dieser Parzelle gehört <strong>{wer_boden}</strong>. Jedoch besitzt <strong>{wer_quelle}</strong> hier ein Quellenrecht. Diese Partei darf auf diesem fremden Grundstück eine Wasserquelle fassen und nutzen."
+        return f"<strong>QUELLENRECHT</strong><br><br>Sowohl der Boden als auch das Recht zur Wassernutzung gehören <strong>{name_dativ(quelle_besitzer[0])}</strong>."
 
-    return f"<strong>VOLLEIGENTUM</strong><br><br>Sowohl Boden als auch Gebäude gehören vollumfänglich <strong>{d(boden[0])}</strong>."
+    if bau_besitzer:
+        txt_boden = " sowie ".join(list(dict.fromkeys([name_dativ(b) for b in boden_besitzer])))
+        txt_bau_nom = " sowie ".join(list(dict.fromkeys([name_nominativ(b) for b in bau_besitzer])))
+        txt_bau_dat = " sowie ".join(list(dict.fromkeys([name_dativ(b) for b in bau_besitzer])))
+
+        if txt_boden == txt_bau_dat:
+            return f"<strong>BAURECHT</strong><br><br>Sowohl der Grund und Boden als auch das Gebäude gehören <strong>{txt_boden}</strong>. Rechtlich gesehen sind dies jedoch zwei getrennte Grundstücke, die unabhängig voneinander behandelt werden."
+        
+        return f"<strong>BAURECHT</strong><br><br>Der Grund und Boden gehört <strong>{txt_boden}</strong>. Jedoch besitzt <strong>{txt_bau_nom}</strong> hier ein Baurecht. Das Gebäude gehört rechtlich <strong>{txt_bau_dat}</strong>, obwohl der Boden <strong>{txt_boden}</strong> gehört."
+
+    if len(boden_besitzer) > 1:
+        txt_boden = " sowie ".join(list(dict.fromkeys([name_dativ(b) for b in boden_besitzer])))
+        return f"<strong>GRENZFALL</strong><br><br>Dieses Gebäude steht auf mehreren Grundstücken gleichzeitig. Der gesamte Boden gehört <strong>{txt_boden}</strong>."
+
+    txt_boden = " sowie ".join(list(dict.fromkeys([name_dativ(b) for b in boden_besitzer])))
+    return f"<strong>VOLLEIGENTUM</strong><br><br>Sowohl der Boden als auch das Gebäude gehören vollumfänglich <strong>{txt_boden}</strong>."
 
 # --- 5. APP RENDERING ---
 try:
@@ -167,17 +182,19 @@ try:
         with t1:
             st.write("")
             st.markdown("<div class='label-text'>Eigentumstyp filtern</div>", unsafe_allow_html=True)
-            f_mode = st.radio("Filter", ["Alle", "Stadt: Vollbesitz", "Stadt: Boden (Baurecht abg.)", "Stadt: Gebäude (Baurecht übern.)"], horizontal=True, label_visibility="collapsed")
             
-            # Filter Erklärungen
-            if f_mode == "Stadt: Vollbesitz":
-                st.markdown("<div class='filter-description'>Zeigt Adressen, bei denen Boden und Gebäude vollständig der Stadt gehören.</div>", unsafe_allow_html=True)
-            elif f_mode == "Stadt: Boden (Baurecht abg.)":
-                st.markdown("<div class='filter-description'>Die Stadt besitzt das Land, hat aber Dritten erlaubt, darauf zu bauen (strategischer Landbesitz).</div>", unsafe_allow_html=True)
-            elif f_mode == "Stadt: Gebäude (Baurecht übern.)":
-                st.markdown("<div class='filter-description'>Die Stadt nutzt oder besitzt ein Gebäude auf Land, das ihr nicht gehört.</div>", unsafe_allow_html=True)
-            else:
-                st.markdown("<div class='filter-description'>Zeigt alle erfassten Adressen im Register.</div>", unsafe_allow_html=True)
+            filter_options = ["Alle Adressen", "Stadt: Vollbesitz", "Stadt: Boden (Baurecht abgegeben)", "Stadt: Gebäude (Baurecht übernommen)"]
+            f_mode = st.radio("Filter", filter_options, horizontal=True, label_visibility="collapsed")
+            
+            # --- NEU: SICHTBARE FILTER-ERKLÄRUNGEN ---
+            if f_mode == "Alle Adressen":
+                st.markdown("<p style='color:#888888; font-size:0.9rem; margin-top:-10px; margin-bottom:20px;'>Zeigt das gesamte Immobilienregister unformatiert an.</p>", unsafe_allow_html=True)
+            elif f_mode == "Stadt: Vollbesitz":
+                st.markdown("<p style='color:#888888; font-size:0.9rem; margin-top:-10px; margin-bottom:20px;'>Zeigt nur Adressen, bei denen sowohl der Boden als auch das Gebäude vollständig der Stadt Biel gehören (keine Fremdnutzung durch Baurecht).</p>", unsafe_allow_html=True)
+            elif f_mode == "Stadt: Boden (Baurecht abgegeben)":
+                st.markdown("<p style='color:#888888; font-size:0.9rem; margin-top:-10px; margin-bottom:20px;'>Die Stadt Biel besitzt das Grundstück (Boden), hat aber Dritten das Recht eingeräumt, darauf ein eigenes Gebäude zu errichten und zu nutzen.</p>", unsafe_allow_html=True)
+            elif f_mode == "Stadt: Gebäude (Baurecht übernommen)":
+                st.markdown("<p style='color:#888888; font-size:0.9rem; margin-top:-10px; margin-bottom:20px;'>Der Boden gehört jemand anderem (z.B. Bund, SBB oder Privat), aber die Stadt Biel hat darauf ein eigenes Gebäude im Baurecht errichtet.</p>", unsafe_allow_html=True)
 
             search = st.text_input("Suche", placeholder="Strasse oder Hausnummer eingeben...", label_visibility="collapsed")
             
@@ -185,22 +202,32 @@ try:
             f_df = df.copy()
             if f_mode == "Stadt: Vollbesitz":
                 f_df = df[df['Eigentumsverhältnis'].str.contains("01") & ~df['Grundstücksnummer(n)'].str.contains("Baurecht")]
-            elif f_mode == "Stadt: Boden (Baurecht abg.)":
+            elif f_mode == "Stadt: Boden (Baurecht abgegeben)":
                 f_df = df[df['Eigentumsverhältnis'].str.contains("01") & df['Grundstücksnummer(n)'].str.contains("Baurecht")]
-            elif f_mode == "Stadt: Gebäude (Baurecht übern.)":
+            elif f_mode == "Stadt: Gebäude (Baurecht übernommen)":
                 f_df = df[~df['Eigentumsverhältnis'].str.contains("01") & df['Grundstücksnummer(n)'].str.contains("01") & df['Grundstücksnummer(n)'].str.contains("Baurecht")]
 
             if search:
                 f_df = f_df[f_df['Adresse'].str.contains(search, case=False)]
 
-            # --- PAGINATION LOGIK ---
-            if "load_count" not in st.session_state or search or f_mode:
-                st.session_state.load_count = 20 # Reset bei neuer Suche oder Filter
+            # --- PAGINATION LOGIK (KORRIGIERT) ---
+            if "load_count" not in st.session_state:
+                st.session_state.load_count = 20
+            if "last_filter" not in st.session_state:
+                st.session_state.last_filter = f_mode
+            if "last_search" not in st.session_state:
+                st.session_state.last_search = search
 
+            # Reset Counter NUR wenn sich der Filter oder die Suche wirklich geändert hat
+            if st.session_state.last_filter != f_mode or st.session_state.last_search != search:
+                st.session_state.load_count = 20
+                st.session_state.last_filter = f_mode
+                st.session_state.last_search = search
+
+            # --- RENDER ADRESSEN ---
             if not f_df.empty:
                 st.markdown(f"<div style='margin-bottom:1rem; opacity:0.6; font-size:0.8rem;'>{len(f_df)} Treffer gefunden</div>", unsafe_allow_html=True)
                 
-                # Nur die aktuelle Anzahl an Treffern anzeigen
                 display_df = f_df.iloc[:st.session_state.load_count]
                 
                 for _, r in display_df.iterrows():
@@ -214,27 +241,30 @@ try:
                 
                 # "Mehr laden" Button
                 if len(f_df) > st.session_state.load_count:
-                    if st.button("Mehr Adressen laden..."):
+                    if st.button("Weitere Treffer laden..."):
                         st.session_state.load_count += 30
                         st.rerun()
             else:
-                st.info("Keine Einträge für diese Auswahl gefunden.")
+                st.markdown("<p class='title-subtext' style='margin-top: 2rem;'>Keine Einträge für diese Auswahl gefunden.</p>", unsafe_allow_html=True)
 
+        # --- TAB 2: FACTS & FIGURES ---
         with t2:
             st.write("")
-            s_df = df[df['Eigentumsverhältnis'].str.contains("01")]
-            total_s = s_df['Fläche_Zahl'].sum()
-            b_ab = s_df[s_df['Grundstücksnummer(n)'].str.contains("Baurecht")]
+            stadt_df = df[df['Eigentumsverhältnis'].str.contains("01", na=False)]
+            baurecht_ab = stadt_df[stadt_df['Grundstücksnummer(n)'].str.contains("Baurecht", na=False)]
+            reiner_besitz = stadt_df[~stadt_df['Grundstücksnummer(n)'].str.contains("Baurecht", na=False)]
+            
+            total_flaeche_stadt = stadt_df['Fläche_Zahl'].sum()
             
             c1, c2 = st.columns(2)
             with c1:
-                st.markdown(f"<div class='fact-card'><span class='label-text'>Stadtbesitz Total</span><br><div style='font-size:2.2rem;'>{int(total_s):,} m²</div><span>ca. {int(total_s/7140)} Fussballfelder.</span></div>", unsafe_allow_html=True)
-                st.markdown(f"<div class='fact-card'><span class='label-text'>Strategisches Baurecht</span><br><div style='font-size:2.2rem;'>{int(b_ab['Fläche_Zahl'].sum()):,} m²</div><span>Von der Stadt abgegebene Baurechte.</span></div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='fact-card'><span class='label-text'>Gesamtfläche Stadt Biel</span><br><div style='font-size:2.2rem; font-weight:300;'>{int(total_flaeche_stadt):,} m²</div><span style='color:#86868B;'>Entspricht ca. <strong>{int(total_flaeche_stadt/7140)} Fussballfeldern</strong>.</span></div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='fact-card'><span class='label-text'>Strategisches Baurecht</span><br><div style='font-size:2.2rem; font-weight:300;'>{int(baurecht_ab['Fläche_Zahl'].sum()):,} m²</div><span style='color:#86868B;'>Von der Stadt Biel an Dritte abgegebene Baurechte.</span></div>", unsafe_allow_html=True)
             with c2:
-                st.markdown(f"<div class='fact-card'><span class='label-text'>Areal-Anteil</span><br><div style='font-size:2.2rem;'>{total_s/df['Fläche_Zahl'].sum()*100:.1f}%</div><span>am gesamten Stadtgebiet.</span></div>", unsafe_allow_html=True)
-                st.markdown(f"<div class='fact-card'><span class='label-text'>Volleigentum</span><br><div style='font-size:2.2rem;'>{len(s_df)-len(b_ab)}</div><span>Adressen ohne Baurechts-Einschränkung.</span></div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='fact-card'><span class='label-text'>Areal-Anteil</span><br><div style='font-size:2.2rem; font-weight:300;'>{total_flaeche_stadt/df['Fläche_Zahl'].sum()*100:.1f}%</div><span style='color:#86868B;'>Anteil der Stadt am gesamten erfassten Landbesitz.</span></div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='fact-card'><span class='label-text'>Volleigentum</span><br><div style='font-size:2.2rem; font-weight:300;'>{len(reiner_besitz)}</div><span style='color:#86868B;'>Adressen, die sich vollumfänglich im Stadtbesitz befinden.</span></div>", unsafe_allow_html=True)
 
-        st.markdown("<div class='methodology-box'><strong>Methodik:</strong> Daten basieren auf dem WebGIS Biel (26.11.2025). Abgleich mit map.geo.admin.ch über amtliche Grundstücksnummern.</div>", unsafe_allow_html=True)
+        st.markdown("<div class='methodology-box'><strong>Methodik:</strong> Daten basieren auf dem WebGIS Biel (26.11.2025). Abgleich mit map.geo.admin.ch über amtliche Grundstücksnummern. Ersetzt kein amtliches Grundbuchdokument.</div>", unsafe_allow_html=True)
 
 except Exception as e:
     st.error(f"Ein Fehler ist aufgetreten: {e}")
