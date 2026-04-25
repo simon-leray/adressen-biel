@@ -133,8 +133,8 @@ div[data-testid="stExpander"] {
 }
 /* Lottie-Container: überschüssigen Whitespace entfernen */
 [data-testid="stCustomComponentV1"] {
-    margin-top: -3rem !important;
-    margin-bottom: -3rem !important;
+    margin-top: -4rem !important;
+    margin-bottom: -4rem !important;
 }
 @media (max-width: 768px) {
     .main-title {
