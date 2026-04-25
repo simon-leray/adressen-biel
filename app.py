@@ -2,7 +2,9 @@ import streamlit as st
 import pandas as pd
 import os
 import re
-import urllib.parse # Neu für die Google Maps Links
+import urllib.parse
+import json
+import pydeck as pdk
 
 # --- 1. SEITENKONFIGURATION ---
 st.set_page_config(
@@ -30,9 +32,10 @@ base_css = """
 .block-container {
     padding-top: 1rem;
     padding-bottom: 4rem;
-    max-width: 850px;
+    max-width: 900px;
 }
 
+/* Suchfeld Hero-Style */
 .stTextInput > div > div > input {
     border-radius: 12px;
     padding: 1.2rem 1.5rem;
@@ -61,10 +64,6 @@ div[data-testid="stExpander"] {
 
 .label-text {
     font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #86868B !important; margin-bottom: 0.5rem;
-}
-
-.fact-card {
-    padding: 2rem; border-radius: 16px; background-color: #FFFFFF; border: 1px solid #EAEAEA; margin-bottom: 1rem;
 }
 
 .methodology-box {
@@ -101,16 +100,17 @@ div[role="radiogroup"] > label:has(input:checked) {
 }
 div[role="radiogroup"] > label:has(input:checked) p { color: #FFFFFF !important; }
 
-/* Styling für den Maps Link */
 .maps-link {
-    font-size: 0.85rem;
-    color: #0066CC;
-    text-decoration: none;
-    font-weight: 500;
+    font-size: 0.85rem; color: #0066CC; text-decoration: none; font-weight: 500;
 }
-.maps-link:hover {
-    text-decoration: underline;
+.maps-link:hover { text-decoration: underline; }
+
+/* Legenden Styling */
+.legend-box {
+    padding: 15px; border-radius: 12px; background-color: #FFFFFF; border: 1px solid #EAEAEA; margin-bottom: 15px; display: flex; gap: 15px; flex-wrap: wrap;
 }
+.legend-item { display: flex; align-items: center; font-size: 0.85rem; font-weight: 500; color: #111111; }
+.legend-color { width: 14px; height: 14px; border-radius: 4px; margin-right: 8px; }
 </style>
 """
 
@@ -119,49 +119,50 @@ dark_css = """
 [data-testid="stAppViewContainer"], .stApp { background-color: #000000 !important; }
 div[data-testid="stWidgetLabel"] p { color: #FFFFFF !important; }
 
-div[data-testid="stExpander"], 
-div[data-testid="stExpander"] *, 
-div[data-testid="stExpanderDetails"] { 
-    background-color: #1C1C1E !important; 
-    border-color: #333336 !important; 
+div[data-testid="stExpander"], div[data-testid="stExpander"] *, div[data-testid="stExpanderDetails"] { 
+    background-color: #1C1C1E !important; border-color: #333336 !important; 
 }
-
-div[data-testid="stExpander"] summary p, .main-title, div[data-testid="stMetricValue"], 
-.info-text, .value-text, div[data-testid="stExpander"] strong { color: #F5F5F7 !important; }
+div[data-testid="stExpander"] summary p, .main-title, .info-text, .value-text, div[data-testid="stExpander"] strong { color: #F5F5F7 !important; }
 
 .stTextInput > div > div > input { background-color: #1C1C1E !important; border-color: #333336 !important; color: #F5F5F7 !important; }
-.fact-card { background-color: #1C1C1E !important; border-color: #333336 !important; }
 .methodology-box { background-color: #1C1C1E !important; color: #A1A1A6 !important; }
 hr { border-top-color: #333336 !important; }
 
-div[role="radiogroup"] > label {
-    background-color: #1C1C1E !important;
-    border-color: #333336 !important;
-}
+div[role="radiogroup"] > label { background-color: #1C1C1E !important; border-color: #333336 !important; }
 div[role="radiogroup"] > label p { color: #F5F5F7 !important; }
-
-div[role="radiogroup"] > label:has(input:checked) {
-    background-color: #FFFFFF !important;
-    border-color: #FFFFFF !important;
-}
+div[role="radiogroup"] > label:has(input:checked) { background-color: #FFFFFF !important; border-color: #FFFFFF !important; }
 div[role="radiogroup"] > label:has(input:checked) p { color: #111111 !important; }
 
-.maps-link {
-    color: #58A6FF;
-}
+.maps-link { color: #58A6FF; }
+
+.legend-box { background-color: #1C1C1E !important; border-color: #333336 !important; }
+.legend-item { color: #F5F5F7 !important; }
 </style>
 """
 
 st.markdown(base_css + (dark_css if dark_mode else ""), unsafe_allow_html=True)
 
 # --- 4. DATEN-LOGIK ---
+
+# Mathe-Umrechner von Schweizer Koordinaten (LV95) auf GPS (WGS84)
+def lv95_to_wgs84(y, x):
+    y_prime = (y - 2600000) / 1000000
+    x_prime = (x - 1200000) / 1000000
+    lon = 2.6779094 + 4.728982 * y_prime + 0.791484 * y_prime * x_prime + 0.1306 * y_prime * x_prime**2 - 0.0436 * y_prime**3
+    lat = 16.9023892 + 3.238272 * x_prime - 0.270978 * y_prime**2 - 0.002528 * x_prime**2 - 0.0447 * y_prime**2 * x_prime - 0.0140 * x_prime**3
+    return [lon * 100 / 36, lat * 100 / 36]
+
+def recursive_convert(coords):
+    if isinstance(coords[0], (int, float)):
+        return lv95_to_wgs84(coords[0], coords[1])
+    return [recursive_convert(c) for c in coords]
+
 @st.cache_data
 def load_data():
     if not os.path.exists('Biel_Adressregister_Final.xlsx'):
         return None
     df = pd.read_excel('Biel_Adressregister_Final.xlsx', sheet_name='Adress-Verzeichnis')
     df = df.fillna("")
-    df['Fläche_Zahl'] = df['Fläche(n)'].str.extract(r'(\d+)').astype(float).fillna(0)
     
     def bestimme_kategorie(row):
         besitz = str(row['Eigentumsverhältnis']).split(" / ")
@@ -179,20 +180,75 @@ def load_data():
         stadt_boden = any("01" in b for b in boden)
         stadt_bau = any("01" in b for b in bau)
         
-        if stadt_boden and not bau:
-            return "Vollbesitz"
-        elif stadt_boden and bau and not stadt_bau:
-            return "Bodenbesitz"
-        elif not stadt_boden and stadt_bau:
-            return "Gebäudebesitz"
+        if stadt_boden and not bau: return "Vollbesitz"
+        elif stadt_boden and bau and not stadt_bau: return "Bodenbesitz"
+        elif not stadt_boden and stadt_bau: return "Gebäudebesitz"
         elif stadt_boden and stadt_bau:
-            if any("01" not in b for b in bau):
-                return "Bodenbesitz"
+            if any("01" not in b for b in bau): return "Bodenbesitz"
             return "Vollbesitz"
         return "Andere"
         
     df['Filter_Kategorie'] = df.apply(bestimme_kategorie, axis=1)
     return df
+
+@st.cache_data
+def load_geojson_map_data(df):
+    if not os.path.exists('Eigentum.md'):
+        return None
+    
+    with open('Eigentum.md', 'r', encoding='utf-8') as f:
+        content = f.read()
+    
+    # Bereinigung, falls das File Markdown Formatierung wie ```json hat
+    content = content.replace("```json", "").replace("```", "").strip()
+    
+    try:
+        data = json.loads(content)
+        features = []
+        
+        # Durchsuche das File nach FeatureCollections
+        if "type" in data and data["type"] == "FeatureCollection":
+            features = data.get("features", [])
+        else:
+            for key, val in data.items():
+                if isinstance(val, dict) and val.get("type") == "FeatureCollection":
+                    features.extend(val.get("features", []))
+                    
+        # Mapping von Grundstücksnummern zu Kategorien erstellen
+        mapping = {}
+        for _, row in df.iterrows():
+            nums = str(row['Grundstücksnummer(n)']).replace('Baurecht', '').replace('Quellenrecht', '').split('/')
+            cat = row['Filter_Kategorie']
+            for n in nums:
+                n_clean = n.strip()
+                if n_clean:
+                    mapping[n_clean] = cat
+        
+        # Koordinaten umrechnen & Farben zuweisen
+        for f in features:
+            f['geometry']['coordinates'] = recursive_convert(f['geometry']['coordinates'])
+            
+            gn = str(f["properties"].get("grst_nummer", ""))
+            kat = mapping.get(gn, "Andere")
+            
+            # Farben Zuweisung
+            if kat == "Vollbesitz":
+                f["properties"]["fill_color"] = [0, 122, 255, 200]  # Apple Blau
+                f["properties"]["kat_name"] = "Vollbesitz Stadt"
+            elif kat == "Bodenbesitz":
+                f["properties"]["fill_color"] = [255, 149, 0, 200]  # Apple Orange
+                f["properties"]["kat_name"] = "Bodenbesitz Stadt (Baurecht abgegeben)"
+            elif kat == "Gebäudebesitz":
+                f["properties"]["fill_color"] = [52, 199, 89, 200]  # Apple Grün
+                f["properties"]["kat_name"] = "Gebäudebesitz Stadt (Baurecht erhalten)"
+            else:
+                f["properties"]["fill_color"] = [142, 142, 147, 80] # Grau transparent
+                f["properties"]["kat_name"] = "Privat / Andere"
+                
+        return features
+    except Exception as e:
+        print(f"GeoJSON Parsing Fehler: {e}")
+        return None
 
 def bereinige_eigentum_text(text):
     return re.sub(r'\d{2}:\s*', '', str(text))
@@ -226,7 +282,7 @@ def generiere_besitz_text(besitz_string, nummern_string):
             return f"<strong>BAURECHT (ABGEGEBEN)</strong><br><br>Der Boden gehört <strong>{d(boden[0])}</strong>. Die Stadt hat das Land jedoch an Dritte im Baurecht abgegeben. Diese besitzen das Gebäude, während die Stadt die Kontrolle über den Boden behält."
         if s_bau and not s_boden:
             return f"<strong>GEBÄUDEBESITZ (BAURECHT ERHALTEN)</strong><br><br>Der Boden gehört einem Dritten. Die <strong>Stadt Biel</strong> besitzt hier jedoch das Gebäude im Baurecht."
-        return f"<strong>BAURECHT</strong><br><br>Hier besteht ein komplexes Baurechtsverhältnis zwischen mehreren Parteien."
+        return f"<strong>BAURECHT</strong><br><br>Hier besteht ein komplexes Baurechtsverhältnis."
 
     if len(boden) > 1:
         txt = " sowie ".join(list(dict.fromkeys([d(b) for b in boden])))
@@ -246,7 +302,7 @@ try:
         st.markdown("<div class='main-title'>Wie viel Stadt besitzt die Stadt?</div>", unsafe_allow_html=True)
         st.markdown("<div class='title-subtext'>Recherche-Portal für das Immobilienregister Biel</div>", unsafe_allow_html=True)
 
-        t1, t2 = st.tabs(["🔍 Suche & Recherche", "📊 Stadt Biel: Facts"])
+        t1, t2 = st.tabs(["🔍 Suche & Recherche", "🗺️ Interaktive Areal-Karte"])
 
         with t1:
             st.write("")
@@ -284,12 +340,9 @@ try:
             if f_mode == "Alle Adressen" and search.strip() == "":
                 show_results = False
 
-            if "load_count" not in st.session_state:
-                st.session_state.load_count = 20
-            if "last_filter" not in st.session_state:
-                st.session_state.last_filter = f_mode
-            if "last_search" not in st.session_state:
-                st.session_state.last_search = search
+            if "load_count" not in st.session_state: st.session_state.load_count = 20
+            if "last_filter" not in st.session_state: st.session_state.last_filter = f_mode
+            if "last_search" not in st.session_state: st.session_state.last_search = search
 
             if st.session_state.last_filter != f_mode or st.session_state.last_search != search:
                 st.session_state.load_count = 20
@@ -299,16 +352,15 @@ try:
             if show_results:
                 if not f_df.empty:
                     st.markdown(f"<div style='margin-bottom:1rem; opacity:0.6; font-size:0.8rem;'>{len(f_df)} Treffer gefunden</div>", unsafe_allow_html=True)
-                    
                     display_df = f_df.iloc[:st.session_state.load_count]
                     
                     for _, r in display_df.iterrows():
                         with st.expander(f"{r['Adresse']}"):
                             st.markdown(f"<div class='info-text'>{generiere_besitz_text(r['Eigentumsverhältnis'], r['Grundstücksnummer(n)'])}</div>", unsafe_allow_html=True)
                             
-                            # GOOGLE MAPS LINK ERSTELLEN
+                            # GOOGLE MAPS LINK
                             maps_query = urllib.parse.quote(f"{r['Adresse']}, Biel")
-                            maps_url = f"https://www.google.com/maps/search/?api=1&query={maps_query}"
+                            maps_url = f"[https://www.google.com/maps/search/?api=1&query=](https://www.google.com/maps/search/?api=1&query=){maps_query}"
                             st.markdown(f'<a href="{maps_url}" target="_blank" class="maps-link">📍 Auf Google Maps anzeigen</a>', unsafe_allow_html=True)
                             
                             st.write("---")
@@ -322,26 +374,62 @@ try:
                             st.session_state.load_count += 30
                             st.rerun()
                 else:
-                    st.markdown("<p class='title-subtext' style='margin-top: 2rem;'>Keine Einträge gefunden. Versuchen Sie einen anderen Suchbegriff.</p>", unsafe_allow_html=True)
+                    st.markdown("<p class='title-subtext' style='margin-top: 2rem;'>Keine Einträge gefunden.</p>", unsafe_allow_html=True)
             else:
                 st.info("Bitte geben Sie eine Adresse ein oder wählen Sie einen Filter aus, um das Register zu durchsuchen.")
 
+        # --- TAB 2: INTERAKTIVE KARTE ---
         with t2:
             st.write("")
-            stadt_voll = df[df['Filter_Kategorie'] == "Vollbesitz"]
-            stadt_boden = df[df['Filter_Kategorie'] == "Bodenbesitz"]
-            total_flaeche_boden = stadt_voll['Fläche_Zahl'].sum() + stadt_boden['Fläche_Zahl'].sum()
-            baurecht_ab_flaeche = stadt_boden['Fläche_Zahl'].sum()
+            st.markdown("""
+            <div class='legend-box'>
+                <div class='legend-item'><div class='legend-color' style='background-color:#007AFF;'></div> Vollbesitz (Stadt)</div>
+                <div class='legend-item'><div class='legend-color' style='background-color:#FF9500;'></div> Bodenbesitz (Baurecht abg.)</div>
+                <div class='legend-item'><div class='legend-color' style='background-color:#34C759;'></div> Gebäudebesitz (Baurecht erh.)</div>
+                <div class='legend-item'><div class='legend-color' style='background-color:#8E8E93;'></div> Privat / Andere</div>
+            </div>
+            """, unsafe_allow_html=True)
             
-            c1, c2 = st.columns(2)
-            with c1:
-                st.markdown(f"<div class='fact-card'><span class='label-text'>Stadtbesitz Total (Boden)</span><br><div style='font-size:2.2rem;'>{int(total_flaeche_boden):,} m²</div><span>ca. {int(total_flaeche_boden/7140)} Fussballfelder.</span></div>", unsafe_allow_html=True)
-                st.markdown(f"<div class='fact-card'><span class='label-text'>Strategisches Baurecht</span><br><div style='font-size:2.2rem;'>{int(baurecht_ab_flaeche):,} m²</div><span>Von der Stadt an Dritte abgegebene Baurechtsfläche.</span></div>", unsafe_allow_html=True)
-            with c2:
-                st.markdown(f"<div class='fact-card'><span class='label-text'>Areal-Anteil</span><br><div style='font-size:2.2rem;'>{total_flaeche_boden/df['Fläche_Zahl'].sum()*100:.1f}%</div><span>am gesamten erfassten Register.</span></div>", unsafe_allow_html=True)
-                st.markdown(f"<div class='fact-card'><span class='label-text'>Volleigentum</span><br><div style='font-size:2.2rem;'>{len(stadt_voll)}</div><span>Adressen ohne Fremdnutzung durch Baurecht.</span></div>", unsafe_allow_html=True)
+            with st.spinner("Kartendaten werden geladen..."):
+                geo_features = load_geojson_map_data(df)
+                
+                if geo_features:
+                    # PyDeck Karten-Ebene erstellen
+                    layer = pdk.Layer(
+                        "GeoJsonLayer",
+                        data={"type": "FeatureCollection", "features": geo_features},
+                        opacity=0.8,
+                        stroked=True,
+                        filled=True,
+                        extruded=False,
+                        get_fill_color="properties.fill_color",
+                        get_line_color=[255, 255, 255, 100],
+                        line_width_min_pixels=1,
+                        pickable=True,
+                    )
+                    
+                    # Karten-Ansicht zentriert auf Biel
+                    view_state = pdk.ViewState(
+                        latitude=47.1368,
+                        longitude=7.2468,
+                        zoom=13.5,
+                        pitch=0,
+                    )
+                    
+                    map_style = "mapbox://styles/mapbox/dark-v10" if dark_mode else "mapbox://styles/mapbox/light-v10"
+                    
+                    r = pdk.Deck(
+                        layers=[layer], 
+                        initial_view_state=view_state, 
+                        map_style=map_style, 
+                        tooltip={"text": "Parzelle {grst_nummer}\nKategorie: {kat_name}"}
+                    )
+                    
+                    st.pydeck_chart(r)
+                else:
+                    st.warning("Die Datei 'Eigentum.md' wurde nicht gefunden oder konnte nicht gelesen werden. Bitte lade sie ins Repository hoch.")
 
-        st.markdown("<div class='methodology-box'><strong>Methodik:</strong> Daten basieren auf dem WebGIS Biel (26.11.2025). Abgleich mit map.geo.admin.ch über amtliche Grundstücksnummern. Ersetzt kein amtliches Grundbuchdokument.</div>", unsafe_allow_html=True)
+        st.markdown("<div class='methodology-box'><strong>Methodik:</strong> Daten basieren auf dem WebGIS Biel (26.11.2025). Ersetzt kein amtliches Grundbuchdokument.</div>", unsafe_allow_html=True)
 
 except Exception as e:
     st.error(f"Ein Fehler ist aufgetreten: {e}")
