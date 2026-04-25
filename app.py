@@ -185,13 +185,15 @@ def generiere_besitz_text(besitz_string, nummern_string):
     def d(t):
         t = str(t).lower()
         if "01" in t: return "der Stadt Biel"
-        if "03" in t: return "einer Privatperson/Firma"
-        return "einer öff. Institution"
+        if "03" in t: return "einer Privatperson oder privaten Firma"
+        if "02" in t: return "einer öffentlichen Institution (Bund, Kanton, SBB oder Ähnliche)"
+        return "einem unbekannten Eigentümer"
     def n(t):
         t = str(t).lower()
         if "01" in t: return "die Stadt Biel"
-        if "03" in t: return "eine Privatperson/Firma"
-        return "eine öff. Institution"
+        if "03" in t: return "eine Privatperson oder private Firma"
+        if "02" in t: return "eine öffentliche Institution (Bund, Kanton, SBB oder Ähnliche)"
+        return "ein unbekannter Eigentümer"
     b_list, n_list = str(besitz_string).split(" / "), str(nummern_string).split(" / ")
     boden, bau, quelle = [], [], []
     for i in range(len(b_list)):
@@ -200,21 +202,23 @@ def generiere_besitz_text(besitz_string, nummern_string):
         elif "Baurecht" in info: bau.append(b)
         else: boden.append(b)
     if quelle:
-        return f"<strong>QUELLENRECHT</strong><br><br>Der Boden gehört <strong>{d(boden[0])}</strong>. Jedoch besitzt <strong>{n(quelle[0])}</strong> hier ein Quellenrecht."
+        return f"<strong>QUELLENRECHT</strong><br><br>Der Grund und Boden dieser Parzelle gehört <strong>{d(boden[0])}</strong>. Jedoch besitzt <strong>{n(quelle[0])}</strong> hier ein Quellenrecht zur Wassernutzung."
     if bau:
         txt_boden = " sowie ".join(list(dict.fromkeys([d(b) for b in boden])))
         txt_bau_nom = " sowie ".join(list(dict.fromkeys([n(b) for b in bau])))
         txt_bau_dat = " sowie ".join(list(dict.fromkeys([d(b) for b in bau])))
-        if txt_boden == txt_bau_dat: return f"<strong>BAURECHT</strong><br><br>Sowohl Grund als auch Gebäude gehören <strong>{txt_boden}</strong>, sind jedoch als getrennte Grundstücke im Register geführt."
-        return f"<strong>BAURECHT</strong><br><br>Der Grund gehört <strong>{txt_boden}</strong>. Jedoch besitzt <strong>{txt_bau_nom}</strong> hier ein Baurecht. Das Gebäude gehört somit rechtlich <strong>{txt_bau_dat}</strong>."
-    if len(boden) > 1: return f"<strong>GRENZFALL / MITBESITZ</strong><br><br>Dieses Objekt gehört <strong>{' sowie '.join(list(dict.fromkeys([d(b) for b in boden])))}</strong> gemeinsam."
-    return f"<strong>VOLLEIGENTUM</strong><br><br>Sowohl der Boden als auch das Gebäude gehören vollumfänglich <strong>{d(boden[0])}</strong>."
+        if txt_boden == txt_bau_dat: return f"<strong>BAURECHT</strong><br><br>Sowohl der Grund und Boden als auch das Gebäude gehören <strong>{txt_boden}</strong>. Rechtlich gesehen sind dies jedoch zwei getrennte Grundstücke, die im Register unabhängig voneinander behandelt werden."
+        return f"<strong>BAURECHT</strong><br><br>Der Grund gehört <strong>{txt_boden}</strong>. Jedoch besitzt <strong>{txt_bau_nom}</strong> hier ein Baurecht. Das Gebäude gehört somit rechtlich <strong>{txt_bau_dat}</strong>, obwohl der Boden weiterhin <strong>{txt_boden}</strong> gehört."
+    if len(boden) > 1: return f"<strong>GRENZFALL / MITBESITZ / STOCKWERKEIGENTUM</strong><br><br>Dieses Objekt steht auf mehreren Parzellen oder gehört <strong>{' sowie '.join(list(dict.fromkeys([d(b) for b in boden])))}</strong> gemeinsam. Dies ist z.B. bei Stockwerkeigentum der Fall."
+    return f"<strong>VOLLEIGENTUM</strong><br><br>Sowohl der Grund und Boden als auch das darauf stehende Gebäude gehören vollumfänglich <strong>{d(boden[0])}</strong>."
 
 # --- 5. APP RENDERING ---
 try:
     df = load_data()
     if df is not None:
-        st.columns([1, 1.5, 1])[1].image("logo_dark.png", use_container_width=True) if os.path.exists("logo_dark.png") else None
+        col_logo = st.columns([1, 1.5, 1])[1]
+        if os.path.exists("logo_dark.png"): col_logo.image("logo_dark.png", use_container_width=True)
+        
         st.markdown("<div class='main-title'>Wie viel Stadt besitzt die Stadt?</div>", unsafe_allow_html=True)
         st.markdown("<div class='title-subtext'>Recherche-Portal für das Immobilienregister Biel</div>", unsafe_allow_html=True)
         
@@ -223,11 +227,18 @@ try:
             search = st.text_input("Suche", placeholder="Strasse und Hausnummer (z.B. Ring 16)...", label_visibility="collapsed")
             f_opt = ["Alle Adressen", "Vollbesitz der Stadt (Gebäude und Land)", "Bodenbesitz der Stadt (Land im Baurecht abgegeben)", "Gebäudebesitz der Stadt (Land im Baurecht erhalten)"]
             f_mode = st.radio("Filter", f_opt, horizontal=True, label_visibility="collapsed")
+            
+            if f_mode == "Alle Adressen": st.markdown("<p style='color:#888888; font-size:0.85rem; margin-top:-10px; margin-bottom:20px;'>💡 Zeigt das gesamte Register. <strong>Bitte Suchbegriff eingeben.</strong></p>", unsafe_allow_html=True)
+            elif "Vollbesitz" in f_mode: st.markdown("<p style='color:#888888; font-size:0.85rem; margin-top:-10px; margin-bottom:20px;'>💡 Adressen, bei denen Boden und Gebäude vollständig der Stadt Biel gehören.</p>", unsafe_allow_html=True)
+            elif "Bodenbesitz" in f_mode: st.markdown("<p style='color:#888888; font-size:0.85rem; margin-top:-10px; margin-bottom:20px;'>💡 Die Stadt besitzt das Land, hat es aber an Dritte im Baurecht abgegeben.</p>", unsafe_allow_html=True)
+            elif "Gebäudebesitz" in f_mode: st.markdown("<p style='color:#888888; font-size:0.85rem; margin-top:-10px; margin-bottom:20px;'>💡 Der Boden gehört jemand anderem, aber die Stadt besitzt darauf ein Gebäude im Baurecht.</p>", unsafe_allow_html=True)
+
             f_df = df.copy()
             if "Vollbesitz" in f_mode: f_df = f_df[f_df['Filter_Kategorie'] == "Vollbesitz"]
             elif "Bodenbesitz" in f_mode: f_df = f_df[f_df['Filter_Kategorie'] == "Bodenbesitz"]
             elif "Gebäudebesitz" in f_mode: f_df = f_df[f_df['Filter_Kategorie'] == "Gebäudebesitz"]
             if search: f_df = f_df[f_df['Adresse'].str.contains(search, case=False, na=False)]
+            
             if not (f_mode == "Alle Adressen" and search == ""):
                 if not f_df.empty:
                     st.markdown(f"<div style='margin-bottom:1rem; opacity:0.6; font-size:0.8rem;'>{len(f_df)} Treffer</div>", unsafe_allow_html=True)
@@ -251,5 +262,6 @@ try:
                 geo = load_geojson_map_data(df)
                 if geo:
                     st.pydeck_chart(pdk.Deck(map_provider="carto", map_style="light", initial_view_state=pdk.ViewState(latitude=47.1368, longitude=7.2468, zoom=14.0), layers=[pdk.Layer("GeoJsonLayer", data={"type": "FeatureCollection", "features": geo}, opacity=1.0, stroked=True, filled=True, get_fill_color="properties.fc", get_line_color="properties.lc", line_width_min_pixels=2, pickable=True)], tooltip={"html": "<b>Parzelle:</b> {grst_nummer}<br/><b>Kategorie:</b> {kn}", "style": {"backgroundColor": "steelblue", "color": "white"}}))
-        st.markdown(f"<div class='methodology-box'>{methodik_text.replace('**', '<strong>').replace('###', '').replace('\n', '<br>')}</div>", unsafe_allow_html=True)
+        
+        st.markdown(f"<div class='methodology-box'>{methodik_text.replace('**', '<strong>').replace('\n', '<br>')}</div>", unsafe_allow_html=True)
 except Exception as e: st.error(f"Fehler: {e}")
