@@ -150,17 +150,18 @@ div[data-testid="stExpander"] {
     /* Mobile: Selectbox-Filter zeigen, Radio-Pills verstecken */
     .stRadio { display: none !important; }
     [data-testid="stSelectbox"] { display: block !important; }
-    /* Button-Reihen (Horizontal-Blöcke mit echten <button>-Elementen):
-       Zeile erzwingen, Spalten schrumpfen auf Inhaltsgrösse */
+    /* Button-Reihen: kompakt nebeneinander */
     [data-testid="stHorizontalBlock"]:has(button) {
         flex-direction: row !important;
         flex-wrap: nowrap !important;
         gap: 8px !important;
+        justify-content: flex-start !important;
     }
     [data-testid="stHorizontalBlock"]:has(button) > [data-testid="column"] {
         flex: 0 0 auto !important;
         min-width: 0 !important;
         width: auto !important;
+        margin: 0 !important;
     }
 }
 .label-text {
