@@ -7,15 +7,21 @@ st.set_page_config(
     layout="wide"
 )
 
-col_space, col_toggle = st.columns([8, 1])
+col_space, col_toggle = st.columns([6, 1.2])
 with col_toggle:
     dark_mode = st.toggle("Dark Mode", value=False)
 
 base_css = """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 #MainMenu, footer, header {visibility: hidden;}
+
+div[data-testid="stWidgetLabel"] p {
+    white-space: nowrap !important;
+    width: auto !important;
+    min-width: 100px !important;
+}
 
 [data-testid="stAppViewContainer"] {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
@@ -38,12 +44,6 @@ base_css = """
     border: 1px solid #EAEAEA !important;
     color: #111111 !important;
     box-shadow: 0 4px 20px rgba(0,0,0,0.03);
-    transition: all 0.3s ease;
-}
-
-.stTextInput > div > div > input:focus {
-    border-color: #CCCCCC !important;
-    box-shadow: none;
 }
 
 div[data-testid="stExpander"] {
@@ -52,7 +52,10 @@ div[data-testid="stExpander"] {
     background-color: #FFFFFF !important;
     border: 1px solid #EAEAEA !important;
     box-shadow: 0 2px 15px rgba(0,0,0,0.02);
-    transition: all 0.3s ease;
+}
+
+div[data-testid="stExpanderDetails"] {
+    background-color: transparent !important;
 }
 
 div[data-testid="stExpander"] summary {
@@ -74,7 +77,6 @@ div[data-testid="stExpander"] summary {
     border-radius: 0px;
     font-weight: 500;
     font-size: 1rem;
-    letter-spacing: 0.01em;
     color: #999999 !important;
 }
 
@@ -88,6 +90,23 @@ div[data-testid="stMetricValue"] {
     font-weight: 300;
     letter-spacing: -0.03em;
     color: #111111 !important;
+}
+
+.main-title {
+    text-align: center;
+    font-weight: 700;
+    font-size: 2.8rem;
+    letter-spacing: -0.03em;
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+    color: #111111 !important;
+}
+
+.title-subtext {
+    text-align: center; 
+    color: #888888 !important; 
+    margin-bottom: 3rem;
+    font-size: 1.05rem;
 }
 
 .info-text {
@@ -117,13 +136,6 @@ hr {
     border-top: 1px solid rgba(134, 134, 139, 0.2);
     margin: 1.5rem 0;
 }
-
-.title-subtext {
-    text-align: center; 
-    color: #888888 !important; 
-    margin-bottom: 3rem;
-    font-size: 1.05rem;
-}
 </style>
 """
 
@@ -144,6 +156,9 @@ div[data-testid="stExpander"] {
     background-color: #1C1C1E !important;
     border-color: #333336 !important;
 }
+div[data-testid="stExpanderDetails"] {
+    background-color: #1C1C1E !important;
+}
 div[data-testid="stExpander"] summary, div[data-testid="stExpander"] summary p {
     color: #F5F5F7 !important;
 }
@@ -155,7 +170,7 @@ div[data-testid="stExpander"] summary svg {
     color: #F5F5F7 !important;
     border-bottom-color: #F5F5F7 !important;
 }
-div[data-testid="stMetricValue"], .info-text, .value-text {
+div[data-testid="stMetricValue"], .info-text, .value-text, .main-title {
     color: #F5F5F7 !important;
 }
 hr {
@@ -219,6 +234,7 @@ def generiere_besitz_text(besitz_string, nummern_string):
 
         if txt_boden == txt_bau:
             return f"<strong>BAURECHT</strong><br><br>Sowohl der Grund und Boden als auch das Gebäude gehören <strong>{txt_boden}</strong>. Rechtlich gesehen sind dies jedoch zwei getrennte Grundstücke, die unabhängig voneinander behandelt werden."
+        
         return f"<strong>BAURECHT</strong><br><br>Der Grund und Boden gehört <strong>{txt_boden}</strong>. Jedoch besitzt <strong>{txt_bau_nom}</strong> hier ein Baurecht. Das Gebäude gehört rechtlich <strong>{txt_bau}</strong>, obwohl der Boden <strong>{txt_boden}</strong> gehört."
 
     if len(boden_besitzer) > 1:
@@ -235,10 +251,9 @@ try:
     with col_logo:
         if os.path.exists(logo_file):
             st.image(logo_file, use_container_width=True)
-        else:
-            st.markdown("<h2 style='text-align: center; font-weight: 600; letter-spacing: -0.02em;'>Immobilienregister</h2>", unsafe_allow_html=True)
-    
-    st.markdown("<div class='title-subtext'>Durchsuchen Sie die Eigentumsverhältnisse der Gebäude auf Basis amtlicher Geodaten.</div>", unsafe_allow_html=True)
+            
+    st.markdown("<div class='main-title'>Wie viel Stadt besitzt die Stadt?</div>", unsafe_allow_html=True)
+    st.markdown("<div class='title-subtext'>Durchsuchen Sie das Immobilienregister auf Basis amtlicher Geodaten.</div>", unsafe_allow_html=True)
 
     tab1, tab2 = st.tabs(["Adress-Suche", "Bestandesübersicht"])
 
