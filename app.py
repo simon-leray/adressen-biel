@@ -265,6 +265,11 @@ def methodik_als_html(text: str) -> str:
     return html.replace('\n', '<br>')
 
 
+def natural_sort_key(s: str) -> str:
+    """Zahlen im String auf 6 Stellen nullen-auffüllen → korrekte Sortierung.
+    'Strasse 9' < 'Strasse 10' statt 'Strasse 10' < 'Strasse 9'."""
+    return re.sub(r'(\d+)', lambda m: m.group(1).zfill(6), str(s).lower())
+
 # Französische Strassentypen stehen fast immer am Wortanfang
 _FR_PREFIX = re.compile(
     r'^\s*(rue|avenue|ave\.|place|chemin|route|voie|boulevard|allée|allee|'
@@ -547,6 +552,7 @@ with t1:
     elif "Gebäudebesitz" in f_mode: f_df = f_df[f_df['Filter_Kategorie'] == "Gebäudebesitz"]
     if search:
         f_df = f_df[f_df['Adresse'].str.contains(search, case=False, na=False)]
+    f_df = f_df.sort_values('Adresse', key=lambda col: col.map(natural_sort_key))
 
     if f_mode == "Alle Adressen" and not search:
         st.info("Bitte Adresse eingeben oder Filter wählen.")
