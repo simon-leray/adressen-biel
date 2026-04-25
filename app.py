@@ -91,30 +91,29 @@ st.markdown("""
 .stTextInput > div > div {
     overflow: visible !important;
 }
-.stTextInput > div > div > input {
-    border-radius: 12px;
-    padding: 1.2rem 1.5rem;
-    font-size: 1.2rem;
-    background-color: #FFFFFF !important;
+/* Normaler Zustand: der base-web Container bekommt unser Design */
+.stTextInput [data-baseweb="base-input"] {
+    border-radius: 12px !important;
     border: 1px solid #EAEAEA !important;
-    color: #111111 !important;
-    box-shadow: 0 8px 30px rgba(0,0,0,0.06);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.06) !important;
+    background-color: #FFFFFF !important;
     margin-bottom: 8px;
 }
-.stTextInput > div > div > input:focus {
-    border-color: #CCCCCC !important;
+/* Fokus: nur leicht dunklerer Rand, kein schwarzer Ring */
+.stTextInput [data-baseweb="base-input"]:focus-within {
+    border: 1px solid #CCCCCC !important;
     box-shadow: 0 8px 30px rgba(0,0,0,0.06) !important;
     outline: none !important;
 }
-.stTextInput > div > div:focus-within {
-    border-color: #CCCCCC !important;
-    box-shadow: 0 8px 30px rgba(0,0,0,0.06) !important;
+/* Das eigentliche Input-Element: kein eigener Border, kein Outline */
+.stTextInput [data-baseweb="base-input"] input {
+    font-size: 1.2rem !important;
+    padding: 1.2rem 1.5rem !important;
+    color: #111111 !important;
+    background: transparent !important;
+    border: none !important;
     outline: none !important;
-}
-[data-baseweb="base-input"]:focus-within {
-    border-color: #CCCCCC !important;
     box-shadow: none !important;
-    outline: none !important;
 }
 div[data-testid="stExpander"] {
     border-radius: 12px;
