@@ -177,9 +177,9 @@ df = load_data()
 if df is not None:
     if os.path.exists(LOGO_FILE): st.columns([1, 1.5, 1])[1].image(LOGO_FILE, use_container_width=True)
     st.markdown("<div class='main-title'>Wie viel Stadt besitzt die Stadt?</div>", unsafe_allow_html=True)
-    st.markdown("<div class='title-subtext'>Recherche-Portal für das Immobilienregister Biel</div>", unsafe_allow_html=True)
+    st.markdown("<div class='title-subtext'>Suchportal für den Immobilienbesitz der Stadt Biel</div>", unsafe_allow_html=True)
     
-    t1, t2 = st.tabs(["🔍 Suche & Recherche", "🗺️ Interaktive Areal-Karte"])
+    t1, t2 = st.tabs(["🔍 Suche & Recherche", "🗺️ Interaktive Karte"])
     
     with t1:
         search = st.text_input("Suche", placeholder="Strasse und Hausnummer...", label_visibility="collapsed")
