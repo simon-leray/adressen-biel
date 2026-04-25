@@ -183,6 +183,8 @@ div[role="radiogroup"] > label {
     border-radius: 30px !important;
     cursor: pointer;
 }
+/* Radio-Kreis ausblenden – der schwarze Button reicht als Indikator */
+div[role="radiogroup"] > label > div:first-child { display: none !important; }
 div[role="radiogroup"] > label:has(input:checked) {
     background-color: #111111 !important;
     border-color: #111111 !important;
