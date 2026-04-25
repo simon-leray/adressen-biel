@@ -87,37 +87,25 @@ st.markdown("""
     max-width: 900px;
 }
 /* Suchfeld */
-[data-testid="stTextInput"],
-[data-testid="stTextInput"] > div,
-[data-testid="stTextInput"] > div > div {
+.stTextInput,
+.stTextInput > div,
+.stTextInput > div > div {
     overflow: visible !important;
 }
-[data-testid="stTextInput"] div[data-baseweb="base-input"] {
-    border: none !important;
-    outline: none !important;
-    box-shadow: none !important;
+.stTextInput > div > div > input {
+    border-radius: 12px;
+    padding: 1.2rem 1.5rem;
+    font-size: 1.2rem;
     background-color: #FFFFFF !important;
-}
-[data-testid="stTextInput"] > div > div {
-    border-radius: 12px !important;
-    border: 1.5px solid #BBBBBB !important;
-    box-shadow: none !important;
-    background-color: #FFFFFF !important;
-    margin-bottom: 8px;
-    transition: border-color 0.2s, box-shadow 0.2s;
-}
-[data-testid="stTextInput"] > div > div:focus-within {
-    border-color: #555555 !important;
-    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.08) !important;
-}
-[data-testid="stTextInput"] input {
-    font-size: 1.2rem !important;
-    padding: 1.2rem 1.5rem !important;
+    border: 1px solid #EAEAEA !important;
     color: #111111 !important;
-    border: none !important;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.06);
+    margin-bottom: 8px;
+}
+.stTextInput > div > div > input:focus {
+    border-color: #AAAAAA !important;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.06) !important;
     outline: none !important;
-    box-shadow: none !important;
-    background: transparent !important;
 }
 div[data-testid="stExpander"] {
     border-radius: 12px;
