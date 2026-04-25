@@ -143,11 +143,11 @@ div[data-testid="stExpander"] {
 .main-title {
     text-align: center; font-weight: 700; font-size: 2.8rem;
     line-height: 1.15;
-    letter-spacing: -0.03em; margin-top: 1rem; color: #111111 !important;
+    letter-spacing: -0.03em; margin-top: 1rem; margin-bottom: 0.6rem; color: #111111 !important;
 }
 .title-subtext {
     text-align: center; color: #888888 !important;
-    margin-bottom: 2rem; font-size: 1.05rem;
+    margin-top: 0; margin-bottom: 2rem; font-size: 1.05rem;
 }
 @media (max-width: 768px) {
     .main-title {
@@ -214,6 +214,17 @@ div[role="radiogroup"] > label:has(input:checked) p { color: #FFFFFF !important;
     text-decoration: none; font-weight: 500;
 }
 </style>
+<script>
+// Setzt cursor:text auf alle Elemente innerhalb des Suchfelds
+function fixSearchCursor() {
+    const inputs = document.querySelectorAll('[data-testid="stTextInput"] *');
+    inputs.forEach(el => { el.style.setProperty('cursor', 'text', 'important'); });
+}
+// Beim Laden und nach Streamlit-Rerenders
+document.addEventListener('DOMContentLoaded', fixSearchCursor);
+setTimeout(fixSearchCursor, 500);
+setTimeout(fixSearchCursor, 1500);
+</script>
 """, unsafe_allow_html=True)
 
 # ── 4. METHODIK TEXT ─────────────────────────────────────────────────────────
