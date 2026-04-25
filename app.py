@@ -101,11 +101,24 @@ st.markdown("""
     box-shadow: 0 8px 30px rgba(0,0,0,0.06);
     margin-bottom: 8px;
 }
+.stTextInput > div > div > input:focus {
+    border-color: #CCCCCC !important;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.06) !important;
+    outline: none !important;
+}
 div[data-testid="stExpander"] {
     border-radius: 12px;
     margin-bottom: 1rem;
     background-color: #FFFFFF !important;
     border: 1px solid #EAEAEA !important;
+}
+[data-testid="stExpanderDetails"] {
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+}
+[data-testid="stExpanderDetails"] hr {
+    margin-top: 0.4rem !important;
+    margin-bottom: 0.4rem !important;
 }
 .main-title {
     text-align: center; font-weight: 700; font-size: 2.8rem;
