@@ -66,8 +66,6 @@ FILTER_HINWEISE = {
 st.set_page_config(page_title="Immobilienregister Biel", layout="wide")
 
 # Session-State initialisieren (immer ganz oben, vor dem ersten Rendering)
-if "disclaimer_shown" not in st.session_state:
-    st.session_state.disclaimer_shown = False
 if "results_limit" not in st.session_state:
     st.session_state.results_limit = 20
 
@@ -201,18 +199,7 @@ def methodik_als_html(text: str) -> str:
     return html.replace('\n', '<br>')
 
 
-# ── 5. DISCLAIMER POPUP ──────────────────────────────────────────────────────
-
-if not st.session_state.disclaimer_shown:
-    @st.dialog("Wichtiger Hinweis")
-    def show_disclaimer():
-        st.markdown(METHODIK_TEXT)
-        if st.button("Verstanden"):
-            st.session_state.disclaimer_shown = True
-            st.rerun()
-    show_disclaimer()
-
-# ── 6. HILFSFUNKTIONEN ───────────────────────────────────────────────────────
+# ── 5. HILFSFUNKTIONEN ───────────────────────────────────────────────────────
 
 def eigentuemer_dativ(code_str: str) -> str:
     code = next((k for k in EIGENTUEMER if k in str(code_str)), None)
@@ -308,7 +295,7 @@ def generiere_besitz_text(besitz_string: str, nummern_string: str) -> str:
     )
 
 
-# ── 7. DATEN LADEN ───────────────────────────────────────────────────────────
+# ── 6. DATEN LADEN ───────────────────────────────────────────────────────────
 
 @st.cache_data
 def load_data() -> pd.DataFrame | None:
@@ -332,7 +319,6 @@ def load_geojson_map_data(df: pd.DataFrame) -> list | None:
         st.error(f"GeoJSON konnte nicht gelesen werden: {e}")
         return None
 
-    # Features aus allen Sub-Collections sammeln
     features: list = []
     if isinstance(raw_data, dict):
         if raw_data.get("type") == "FeatureCollection":
@@ -342,13 +328,11 @@ def load_geojson_map_data(df: pd.DataFrame) -> list | None:
                 if isinstance(val, dict) and val.get("type") == "FeatureCollection":
                     features.extend(val.get("features", []))
 
-    # Lookup: Grundstücksnummer → Kategorie
     mapping: dict[str, str] = {}
     for _, row in df.iterrows():
         for num in re.findall(r'\d+', str(row['Grundstücksnummer(n)'])):
             mapping[num] = row['Filter_Kategorie']
 
-    # Koordinaten konvertieren + Farben setzen
     for feature in features:
         feature['geometry']['coordinates'] = recursive_convert(
             feature['geometry']['coordinates']
@@ -364,7 +348,7 @@ def load_geojson_map_data(df: pd.DataFrame) -> list | None:
     return features
 
 
-# ── 8. APP RENDERING ─────────────────────────────────────────────────────────
+# ── 7. APP RENDERING ─────────────────────────────────────────────────────────
 
 df = load_data()
 if df is None:
@@ -396,7 +380,6 @@ with t1:
         unsafe_allow_html=True,
     )
 
-    # Filtern
     f_df = df.copy()
     if "Vollbesitz" in f_mode:      f_df = f_df[f_df['Filter_Kategorie'] == "Vollbesitz"]
     elif "Bodenbesitz" in f_mode:   f_df = f_df[f_df['Filter_Kategorie'] == "Bodenbesitz"]
@@ -491,7 +474,7 @@ def render_karte():
 with t2:
     render_karte()
 
-# ── 9. FOOTER ────────────────────────────────────────────────────────────────
+# ── 8. FOOTER ────────────────────────────────────────────────────────────────
 st.markdown(
     f"<div class='methodology-box'>{methodik_als_html(METHODIK_TEXT)}</div>",
     unsafe_allow_html=True,
