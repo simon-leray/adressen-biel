@@ -20,20 +20,19 @@ def generiere_besitz_text(besitz_string, nummern_string):
         t = str(text).lower()
         if "01" in t: return "der Stadt Biel"
         if "03" in t: return "einer Privatperson oder privaten Firma"
-        if "02" in t: return "einer öffentlichen Institution (Bund, Kanton oder SBB)"
+        if "02" in t: return "einer öffentlichen Institution (Bund, Kanton, SBB oder Ähnliche)"
         return "einem unbekannten Eigentümer"
 
     def name_nominativ(text):
         t = str(text).lower()
         if "01" in t: return "die Stadt Biel"
         if "03" in t: return "eine Privatperson oder private Firma"
-        if "02" in t: return "eine öffentliche Institution (Bund, Kanton oder SBB)"
+        if "02" in t: return "eine öffentliche Institution (Bund, Kanton, SBB oder Ähnliche)"
         return "ein unbekannter Eigentümer"
 
     besitzer_liste = str(besitz_string).split(" / ")
     info_liste = str(nummern_string).split(" / ")
     
-    # Daten sortieren nach Typ
     boden_besitzer = []
     bau_besitzer = []
     quelle_besitzer = []
@@ -49,7 +48,6 @@ def generiere_besitz_text(besitz_string, nummern_string):
         else:
             boden_besitzer.append(b)
 
-    # FALL 1: Quellenrecht
     if quelle_besitzer:
         wer_quelle = name_nominativ(quelle_besitzer[0])
         if boden_besitzer:
@@ -60,9 +58,7 @@ def generiere_besitz_text(besitz_string, nummern_string):
         else:
             return (f"💧 **Quellenrecht:** Sowohl der Boden als auch das Recht zur Wassernutzung gehören **{name_dativ(quelle_besitzer[0])}**.")
 
-    # FALL 2: Baurecht (Gebäude und Boden getrennt)
     if bau_besitzer:
-        # Einzigartige Besitzer sammeln für die Grammatik
         einzig_boden = list(dict.fromkeys([name_dativ(b) for b in boden_besitzer]))
         einzig_bau = list(dict.fromkeys([name_dativ(b) for b in bau_besitzer]))
         einzig_bau_nom = list(dict.fromkeys([name_nominativ(b) for b in bau_besitzer]))
@@ -71,22 +67,19 @@ def generiere_besitz_text(besitz_string, nummern_string):
         txt_bau = " sowie ".join(einzig_bau)
         txt_bau_nom = " sowie ".join(einzig_bau_nom)
 
-        # Spezialfall: Gleiche Kategorie besitzt beides
         if txt_boden == txt_bau:
             return (f"🏢 **Besondere Situation (Baurecht):** Sowohl der Grund und Boden als auch das Gebäude gehören **{txt_boden}**. "
                     f"Rechtlich gesehen sind dies jedoch zwei getrennte Grundstücke, die unabhängig voneinander behandelt werden.")
         
         return (f"🏢 **Besondere Situation (Baurecht):** Der Grund und Boden gehört **{txt_boden}**. "
-                f"Jedoch besitzt **{txt_bau_nom}** hier ein Baurecht. Das bedeutet: Das Gebäude gehört rechtlich **{txt_bau}**, obwohl der Boden jemand anderem gehört.")
+                f"Jedoch besitzt **{txt_bau_nom}** hier ein Baurecht. Das bedeutet: Das Gebäude gehört rechtlich **{txt_bau}**, obwohl der Boden **{txt_boden}** gehört.")
 
-    # FALL 3: Mehrere Böden (Grenz-Reiter)
     if len(boden_besitzer) > 1:
         einzig_boden = list(dict.fromkeys([name_dativ(b) for b in boden_besitzer]))
         txt_boden = " sowie ".join(einzig_boden)
         return (f"🏘️ **Grenzfall:** Dieses Gebäude steht auf mehreren Grundstücken gleichzeitig. "
                 f"Der gesamte Boden gehört **{txt_boden}**.")
 
-    # FALL 4: Normalfall
     return f"🏡 **Vollständiges Eigentum:** Sowohl der Boden als auch das Gebäude gehören vollumfänglich **{name_dativ(boden_besitzer[0])}**."
 
 try:
