@@ -85,12 +85,12 @@ def generiere_besitz_text(besitz_string, nummern_string):
 try:
     df = load_excel()
     st.title("🏛️ Immobilien-Register der Stadt Biel")
-    st.markdown("Durchsuche die Eigentumsverhältnisse aller Gebäude auf Basis amtlicher Geodaten.")
+    st.markdown("Durchsuchen Sie die Eigentumsverhältnisse aller Gebäude auf Basis amtlicher Geodaten.")
 
     tab1, tab2 = st.tabs(["🔍 Adress-Suche", "📊 Bestandesübersicht"])
 
     with tab1:
-        search_query = st.text_input("Adresse suchen (z.B. Südstrasse 82):", "")
+        search_query = st.text_input("Geben Sie eine Adresse ein (z.B. Südstrasse 82):", placeholder="Strasse und Hausnummer...")
         if search_query:
             results = df[df['Adresse'].str.contains(search_query, case=False, na=False)]
             if not results.empty:
@@ -110,7 +110,9 @@ try:
                             st.caption("Fläche(n)")
                             st.write(str(row['Fläche(n)']).replace(" / ", "\n\n"))
             else:
-                st.warning("Keine Treffer unter dieser Adresse gefunden.")
+                st.warning("Es wurden keine Treffer unter dieser Adresse gefunden. Bitte überprüfen Sie Ihre Eingabe.")
+        else:
+            st.info("Bitte geben Sie oben eine Adresse ein, um die Suche zu starten.")
 
     with tab2:
         col_m1, col_m2 = st.columns(2)
@@ -126,4 +128,4 @@ try:
         st.dataframe(top_10[['Adresse', 'Fläche(n)', 'Grundstücksnummer(n)']], use_container_width=True, hide_index=True)
 
 except Exception as e:
-    st.error(f"Fehler beim Laden der App. Details: {e}")
+    st.error("Ein Fehler ist beim Laden der App aufgetreten. Bitte laden Sie die Seite neu oder kontaktieren Sie den Administrator.")
