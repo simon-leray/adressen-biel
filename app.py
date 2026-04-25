@@ -133,8 +133,8 @@ div[data-testid="stExpander"] {
 }
 /* Lottie-Container: überschüssigen Whitespace entfernen */
 [data-testid="stCustomComponentV1"] {
-    margin-top: -4rem !important;
-    margin-bottom: -4rem !important;
+    margin-top: -6rem !important;
+    margin-bottom: -6rem !important;
 }
 @media (max-width: 768px) {
     .main-title {
@@ -142,8 +142,8 @@ div[data-testid="stExpander"] {
         line-height: 1.1;
     }
     [data-testid="stCustomComponentV1"] {
-        margin-top: -2rem !important;
-        margin-bottom: -2rem !important;
+        margin-top: -5rem !important;
+        margin-bottom: -5rem !important;
     }
 }
 .label-text {
@@ -384,7 +384,7 @@ if os.path.exists(LOTTIE_FILE):
     with open(LOTTIE_FILE, encoding="utf-8") as f:
         lottie_data = json.load(f)
     with col_logo:
-        st_lottie(lottie_data, height=200, loop=True, quality="high", key="logo")
+        st_lottie(lottie_data, height=250, loop=True, quality="high", key="logo")
 
 st.markdown("<div class='main-title'>Wie viel Stadt besitzt die Stadt?</div>", unsafe_allow_html=True)
 st.markdown("<div class='title-subtext'>Suchportal für den Immobilienbesitz der Stadt Biel</div>", unsafe_allow_html=True)
