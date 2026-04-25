@@ -142,41 +142,69 @@ div[data-testid="stMetricValue"] {
 
 dark_css = """
 <style>
+/* Hintergrund App */
 [data-testid="stAppViewContainer"] {
     background-color: #000000 !important;
 }
+
+/* Toggle Text */
 div[data-testid="stWidgetLabel"] p {
     color: #FFFFFF !important;
 }
+
+/* INPUT & PLACEHOLDER FIX */
+.stTextInput > div > div > input {
+    background-color: #1C1C1E !important;
+    border-color: #333336 !important;
+    color: #F5F5F7 !important;
+}
+
+/* Erzwingt Sichtbarkeit des Placeholders im Dark Mode */
+.stTextInput input::placeholder {
+    color: #86868B !important;
+    opacity: 1;
+}
+
+/* EXPANDER DARK MODE - KOMPLETT-FIX */
 div[data-testid="stExpander"], 
+div[data-testid="stExpander"] > div,
 div[data-testid="stExpanderDetails"],
-.st-emotion-cache-1h9usn2, 
-.st-emotion-cache-6q9sum {
+[data-testid="stExpander"] {
     background-color: #1C1C1E !important;
     border-color: #333336 !important;
 }
+
+/* Verhindert Hover-Aufhellung bei Expandern */
+div[data-testid="stExpander"]:hover,
+div[data-testid="stExpander"] summary:hover {
+    background-color: #2C2C2E !important;
+    border-color: #48484A !important;
+}
+
 div[data-testid="stExpander"] summary, 
 div[data-testid="stExpander"] summary p,
 div[data-testid="stExpander"] p,
 div[data-testid="stExpander"] span {
     color: #F5F5F7 !important;
 }
-.stTextInput > div > div > input {
-    background-color: #1C1C1E !important;
-    border-color: #333336 !important;
-    color: #F5F5F7 !important;
-}
+
+/* Metriken & Titel */
 .main-title, div[data-testid="stMetricValue"], .info-text, .value-text {
     color: #F5F5F7 !important;
 }
+
+/* Tabs */
 .stTabs [aria-selected="true"] {
     color: #F5F5F7 !important;
     border-bottom-color: #F5F5F7 !important;
 }
+
+/* Methodik Box */
 .methodology-box {
-    background-color: #1C1C1E;
-    color: #A1A1A6;
+    background-color: #1C1C1E !important;
+    color: #A1A1A6 !important;
 }
+
 hr { border-top-color: #333336 !important; }
 </style>
 """
@@ -300,7 +328,6 @@ try:
         top_10 = stadt_besitz_sort.sort_values(by='Fläche_Zahl', ascending=False).head(10)
         st.dataframe(top_10[['Adresse', 'Fläche(n)', 'Grundstücksnummer(n)']], use_container_width=True, hide_index=True)
 
-    # --- METHODIK INFOBOX ---
     st.markdown(f"""
     <div class='methodology-box'>
         <strong>Methodik & Datenquellen</strong><br>
