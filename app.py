@@ -7,17 +7,20 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- DYNAMISCHES CSS (Inter-Font, Minimalismus) ---
+col_space, col_toggle = st.columns([8, 1])
+with col_toggle:
+    dark_mode = st.toggle("Dark Mode", value=False)
+
 base_css = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
 
-#MainMenu {visibility: hidden;}
-footer {visibility: hidden;}
-header {visibility: hidden;}
+#MainMenu, footer, header {visibility: hidden;}
 
-html, body, [class*="css"] {
+[data-testid="stAppViewContainer"] {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    background-color: #FAFAFA !important;
+    transition: background-color 0.3s ease;
 }
 
 .block-container {
@@ -26,17 +29,16 @@ html, body, [class*="css"] {
     max-width: 850px;
 }
 
-/* Eingabefeld */
 .stTextInput > div > div > input {
     border-radius: 12px;
     padding: 1rem 1.5rem;
     font-size: 1.1rem;
     font-weight: 400;
-    transition: all 0.2s ease;
-    border: 1px solid #EAEAEA !important;
     background-color: #FFFFFF !important;
+    border: 1px solid #EAEAEA !important;
     color: #111111 !important;
     box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+    transition: all 0.3s ease;
 }
 
 .stTextInput > div > div > input:focus {
@@ -44,15 +46,15 @@ html, body, [class*="css"] {
     box-shadow: none;
 }
 
-/* Aufklappbare Boxen (Expander) */
 div[data-testid="stExpander"] {
     border-radius: 12px;
     margin-bottom: 1rem;
-    border: 1px solid #EAEAEA !important;
     background-color: #FFFFFF !important;
+    border: 1px solid #EAEAEA !important;
     box-shadow: 0 2px 15px rgba(0,0,0,0.02);
-    transition: all 0.2s ease;
+    transition: all 0.3s ease;
 }
+
 div[data-testid="stExpander"] summary {
     font-weight: 500;
     font-size: 1.1rem;
@@ -60,12 +62,12 @@ div[data-testid="stExpander"] summary {
     color: #111111 !important;
 }
 
-/* Tabs (Reiter) */
 .stTabs [data-baseweb="tab-list"] {
     gap: 2rem;
     border-bottom: 1px solid rgba(134, 134, 139, 0.3);
     margin-bottom: 2.5rem;
 }
+
 .stTabs [data-baseweb="tab"] {
     height: 50px;
     background-color: transparent;
@@ -75,12 +77,12 @@ div[data-testid="stExpander"] summary {
     letter-spacing: 0.01em;
     color: #999999 !important;
 }
+
 .stTabs [aria-selected="true"] {
     color: #111111 !important;
     border-bottom: 2px solid #111111 !important;
 }
 
-/* Metriken (Zahlen) */
 div[data-testid="stMetricValue"] {
     font-size: 3.5rem;
     font-weight: 300;
@@ -88,36 +90,86 @@ div[data-testid="stMetricValue"] {
     color: #111111 !important;
 }
 
-/* Eigene Text-Klassen für perfektes Layout */
 .info-text {
     font-size: 1.05rem;
     line-height: 1.6;
     font-weight: 300;
-    color: #111111;
+    color: #111111 !important;
 }
+
 .label-text {
     font-size: 0.7rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     margin-bottom: 0.3rem;
-    opacity: 0.5;
-    color: #111111;
+    color: #86868B !important;
 }
+
 .value-text {
     font-size: 0.95rem;
     font-weight: 400;
     margin-bottom: 1.2rem;
-    color: #111111;
+    color: #111111 !important;
 }
+
 hr {
     border-top: 1px solid rgba(134, 134, 139, 0.2);
     margin: 1.5rem 0;
 }
+
+.title-subtext {
+    text-align: center; 
+    color: #888888 !important; 
+    margin-bottom: 3rem;
+    font-size: 1.05rem;
+}
 </style>
 """
 
-st.markdown(base_css, unsafe_allow_html=True)
+dark_css = """
+<style>
+[data-testid="stAppViewContainer"] {
+    background-color: #000000 !important;
+}
+[data-testid="stHeader"] {
+    background-color: transparent !important;
+}
+.stTextInput > div > div > input {
+    background-color: #1C1C1E !important;
+    border-color: #333336 !important;
+    color: #F5F5F7 !important;
+}
+div[data-testid="stExpander"] {
+    background-color: #1C1C1E !important;
+    border-color: #333336 !important;
+}
+div[data-testid="stExpander"] summary, div[data-testid="stExpander"] summary p {
+    color: #F5F5F7 !important;
+}
+div[data-testid="stExpander"] summary svg {
+    color: #F5F5F7 !important;
+    fill: #F5F5F7 !important;
+}
+.stTabs [aria-selected="true"] {
+    color: #F5F5F7 !important;
+    border-bottom-color: #F5F5F7 !important;
+}
+div[data-testid="stMetricValue"], .info-text, .value-text {
+    color: #F5F5F7 !important;
+}
+hr {
+    border-top-color: #333336 !important;
+}
+</style>
+"""
+
+if dark_mode:
+    st.markdown(base_css + dark_css, unsafe_allow_html=True)
+    logo_file = "logo_light.png"
+else:
+    st.markdown(base_css, unsafe_allow_html=True)
+    logo_file = "logo_dark.png"
 
 @st.cache_data
 def load_excel():
@@ -178,17 +230,15 @@ def generiere_besitz_text(besitz_string, nummern_string):
 try:
     df = load_excel()
 
-    # --- LOGO ZENTRIERT (Gross) ---
     st.write("")
     col_l1, col_logo, col_l3 = st.columns([1, 1.5, 1])
     with col_logo:
-        logo_file = "logo_dark.png" # Wir nutzen jetzt dauerhaft das Logo für hellen Hintergrund
         if os.path.exists(logo_file):
             st.image(logo_file, use_container_width=True)
         else:
             st.markdown("<h2 style='text-align: center; font-weight: 600; letter-spacing: -0.02em;'>Immobilienregister</h2>", unsafe_allow_html=True)
     
-    st.markdown("<p style='text-align: center; color: #888; margin-bottom: 3rem;'>Durchsuchen Sie die Eigentumsverhältnisse der Gebäude auf Basis amtlicher Geodaten.</p>", unsafe_allow_html=True)
+    st.markdown("<div class='title-subtext'>Durchsuchen Sie die Eigentumsverhältnisse der Gebäude auf Basis amtlicher Geodaten.</div>", unsafe_allow_html=True)
 
     tab1, tab2 = st.tabs(["Adress-Suche", "Bestandesübersicht"])
 
@@ -216,7 +266,7 @@ try:
                             st.markdown("<div class='label-text'>Fläche(n)</div>", unsafe_allow_html=True)
                             st.markdown(f"<div class='value-text'>{str(row['Fläche(n)']).replace(' / ', '<br>')}</div>", unsafe_allow_html=True)
             else:
-                st.markdown("<p style='color: #888; text-align: center; margin-top: 2rem;'>Es wurden keine Einträge gefunden.</p>", unsafe_allow_html=True)
+                st.markdown("<p class='title-subtext' style='margin-top: 2rem;'>Es wurden keine Einträge gefunden.</p>", unsafe_allow_html=True)
 
     with tab2:
         st.write("")
@@ -235,4 +285,4 @@ try:
         st.dataframe(top_10[['Adresse', 'Fläche(n)', 'Grundstücksnummer(n)']], use_container_width=True, hide_index=True)
 
 except Exception as e:
-    st.markdown("<p style='color: #888; text-align: center;'>Ein Systemfehler ist aufgetreten. Bitte laden Sie die Seite neu.</p>", unsafe_allow_html=True)
+    st.markdown("<p class='title-subtext'>Ein Systemfehler ist aufgetreten. Bitte laden Sie die Seite neu.</p>", unsafe_allow_html=True)
