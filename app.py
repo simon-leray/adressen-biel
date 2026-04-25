@@ -180,9 +180,9 @@ def generiere_besitz_text(besitz_string, nummern_string):
         s_boden = any("01" in str(b) for b in boden)
         s_bau = any("01" in str(b) for b in bau)
         if s_boden and not s_bau:
-            return f"<strong>BAURECHT (ABGEGEBEN)</strong><br><br>Der Boden gehört <strong>{d(boden[0])}</strong>. Die Stadt hat jedoch das Gebäude im Baurecht an Dritte abgegeben. Diese besitzen das Gebäude, während die Stadt Kontrolle über das Land behält."
+            return f"<strong>BAURECHT (ABGEGEBEN)</strong><br><br>Der Boden gehört <strong>{d(boden[0])}</strong>. Die Stadt hat das Land jedoch an Dritte im Baurecht abgegeben. Diese besitzen das Gebäude (oder Teile davon), während die Stadt die Kontrolle über den Boden behält."
         if s_bau and not s_boden:
-            return f"<strong>BAURECHT (ÜBERNOMMEN)</strong><br><br>Der Boden gehört einem Dritten. Die <strong>Stadt Biel</strong> besitzt hier jedoch das Gebäude im Baurecht und nutzt die Fläche."
+            return f"<strong>GEBÄUDEBESITZ / STOCKWERKEIGENTUM</strong><br><br>Der Boden gehört einem Dritten. Die <strong>Stadt Biel</strong> besitzt hier jedoch das Gebäude (oder Teile davon, z.B. als Stockwerkeigentum) im Baurecht."
         return f"<strong>BAURECHT</strong><br><br>Hier besteht ein komplexes Baurechtsverhältnis zwischen mehreren Parteien."
 
     if len(boden) > 1:
@@ -229,7 +229,7 @@ try:
             elif f_mode == "Bodenbesitz der Stadt (Land im Baurecht abgegeben)":
                 st.markdown("<p style='color:#888888; font-size:0.85rem; margin-top:-10px; margin-bottom:20px;'>💡 Die Stadt besitzt das Land, hat es aber an Dritte im Baurecht abgegeben.</p>", unsafe_allow_html=True)
             elif f_mode == "Gebäudebesitz der Stadt (Land im Baurecht erhalten)":
-                st.markdown("<p style='color:#888888; font-size:0.85rem; margin-top:-10px; margin-bottom:20px;'>💡 Der Boden gehört jemand anderem, aber die Stadt hat darauf ein Gebäude im Baurecht.</p>", unsafe_allow_html=True)
+                st.markdown("<p style='color:#888888; font-size:0.85rem; margin-top:-10px; margin-bottom:20px;'>💡 Der Boden gehört jemand anderem, aber die Stadt besitzt darauf ein Gebäude (oder Teile davon, z.B. Stockwerkeigentum) im Baurecht.</p>", unsafe_allow_html=True)
 
             # --- FILTER LOGIK ---
             f_df = df.copy()
@@ -240,7 +240,7 @@ try:
             elif f_mode == "Gebäudebesitz der Stadt (Land im Baurecht erhalten)":
                 f_df = f_df[~f_df['Eigentumsverhältnis'].str.contains("01", na=False) & f_df['Grundstücksnummer(n)'].str.contains("01", na=False) & f_df['Grundstücksnummer(n)'].str.contains("Baurecht", na=False)]
 
-            # --- SUCHLOGIK ---
+            # --- DIE ALTE (EXAKTE) SUCHLOGIK ---
             if search:
                 f_df = f_df[f_df['Adresse'].str.contains(search, case=False, na=False)]
 
