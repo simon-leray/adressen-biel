@@ -387,7 +387,7 @@ if os.path.exists(LOTTIE_FILE):
     with col_logo:
         st.components.v1.html(f"""
         <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
-        <div id="lottie" style="width:100%; height:140px; display:flex; align-items:center; justify-content:center;"></div>
+        <div id="lottie" style="width:100%; height:200px; margin-bottom:-60px; display:flex; align-items:center; justify-content:center;"></div>
         <script>
           lottie.loadAnimation({{
             container: document.getElementById('lottie'),
@@ -397,7 +397,7 @@ if os.path.exists(LOTTIE_FILE):
             animationData: {lottie_json_str}
           }});
         </script>
-        """, height=140)
+        """, height=150)
 
 st.markdown("<div class='main-title'>Wie viel Stadt besitzt die Stadt?</div>", unsafe_allow_html=True)
 st.markdown("<div class='title-subtext'>Suchportal für den Immobilienbesitz der Stadt Biel</div>", unsafe_allow_html=True)
