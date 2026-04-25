@@ -1,12 +1,14 @@
 import streamlit as st
 import pandas as pd
 import os
+import plotly.express as px
 
 st.set_page_config(
     page_title="Immobilienregister Biel", 
     layout="wide"
 )
 
+# --- THEME LOGIK ---
 col_space, col_toggle = st.columns([6, 1.4])
 with col_toggle:
     dark_mode = st.toggle("Dark Mode", value=False)
@@ -31,7 +33,7 @@ div[data-testid="stWidgetLabel"] p {
 .block-container {
     padding-top: 1rem;
     padding-bottom: 4rem;
-    max-width: 850px;
+    max-width: 950px;
 }
 
 .stTextInput > div > div > input {
@@ -49,6 +51,11 @@ div[data-testid="stExpander"] {
     margin-bottom: 1rem;
     background-color: #FFFFFF !important;
     border: 1px solid #EAEAEA !important;
+    box-shadow: 0 2px 15px rgba(0,0,0,0.02);
+}
+
+div[data-testid="stExpanderDetails"] {
+    background-color: transparent !important;
 }
 
 div[data-testid="stExpander"] summary {
@@ -99,15 +106,15 @@ div[data-testid="stMetricValue"] {
 }
 
 .label-text {
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    margin-bottom: 0.3rem;
     color: #86868B !important;
+    margin-bottom: 0.5rem;
 }
 
-.value-text, .info-text {
+.info-text, .value-text {
     font-size: 0.95rem;
     color: #111111 !important;
 }
@@ -119,6 +126,7 @@ div[data-testid="stMetricValue"] {
     background-color: #F2F2F7;
     font-size: 0.9rem;
     color: #555555;
+    line-height: 1.5;
 }
 </style>
 """
@@ -138,10 +146,12 @@ div[data-testid="stWidgetLabel"] p {
     border-color: #333336 !important;
     color: #F5F5F7 !important;
 }
+
 .stTextInput input::placeholder {
     color: #86868B !important;
 }
 
+/* EXPANDER DARK MODE - RADIKAL FIX */
 div[data-testid="stExpander"], 
 div[data-testid="stExpander"] *, 
 div[data-testid="stExpanderDetails"] {
@@ -149,15 +159,9 @@ div[data-testid="stExpanderDetails"] {
     border-color: #333336 !important;
 }
 
-div[data-testid="stExpander"] summary, 
-div[data-testid="stExpander"] p, 
-div[data-testid="stExpander"] span, 
-div[data-testid="stExpander"] div,
-div[data-testid="stExpander"] strong {
-    color: #F5F5F7 !important;
-}
-
-.main-title, div[data-testid="stMetricValue"], .info-text, .value-text {
+div[data-testid="stExpander"] summary p,
+.main-title, div[data-testid="stMetricValue"], 
+.info-text, .value-text, div[data-testid="stExpander"] strong {
     color: #F5F5F7 !important;
 }
 
@@ -175,25 +179,30 @@ hr { border-top-color: #333336 !important; }
 </style>
 """
 
-if dark_mode:
-    st.markdown(base_css + dark_css, unsafe_allow_html=True)
-    logo_file = "logo_light.png"
-else:
-    st.markdown(base_css, unsafe_allow_html=True)
-    logo_file = "logo_dark.png"
+st.markdown(base_css + (dark_css if dark_mode else ""), unsafe_allow_html=True)
 
+# --- DATEN & LOGIK ---
 @st.cache_data
-def load_excel():
+def load_data():
     df = pd.read_excel('Biel_Adressregister_Final.xlsx', sheet_name='Adress-Verzeichnis')
-    return df.fillna("")
+    df = df.fillna("")
+    df['Fläche_Zahl'] = df['Fläche(n)'].str.extract(r'(\d+)').astype(float).fillna(0)
+    
+    def map_kat(val):
+        t = str(val)
+        if "01" in t: return "Stadt Biel"
+        if "02" in t: return "Öffentl. Institutionen"
+        if "03" in t: return "Privat"
+        return "Sonstige"
+    
+    df['Kategorie'] = df['Eigentumsverhältnis'].apply(map_kat)
+    return df
 
 def bereinige_eigentum_text(text):
-    t = str(text)
-    t = t.replace("01: ", "").replace("02: ", "").replace("03: ", "")
-    return t
+    return str(text).replace("01: ", "").replace("02: ", "").replace("03: ", "")
 
 def generiere_besitz_text(besitz_string, nummern_string):
-    if not besitz_string: return "Keine detaillierten Eigentumsdaten verfügbar."
+    if not besitz_string: return "Keine detaillierten Daten verfügbar."
     
     def name_dativ(text):
         t = str(text).lower()
@@ -224,15 +233,17 @@ def generiere_besitz_text(besitz_string, nummern_string):
         wer_quelle = name_nominativ(quelle_besitzer[0])
         if boden_besitzer:
             wer_boden = name_dativ(boden_besitzer[0])
-            return f"<strong>QUELLENRECHT</strong><br><br>Der Grund und Boden dieser Parzelle gehört <strong>{wer_boden}</strong>. Jedoch besitzt <strong>{wer_quelle}</strong> hier ein Quellenrecht. Diese Partei darf auf diesem fremden Grundstück eine Wasserquelle fassen und nutzen."
-        return f"<strong>QUELLENRECHT</strong><br><br>Sowohl der Boden als auch das Recht zur Wassernutzung gehören <strong>{name_dativ(quelle_besitzer[0])}</strong>."
+            return f"<strong>QUELLENRECHT</strong><br><br>Der Grund und Boden dieser Parzelle gehört <strong>{wer_boden}</strong>. Jedoch besitzt <strong>{wer_quelle}</strong> hier ein Quellenrecht."
+        return f"Sowohl der Boden als auch das Recht zur Wassernutzung gehören <strong>{name_dativ(quelle_besitzer[0])}</strong>."
 
     if bau_besitzer:
         txt_boden = " sowie ".join(list(dict.fromkeys([name_dativ(b) for b in boden_besitzer])))
         txt_bau_nom = " sowie ".join(list(dict.fromkeys([name_nominativ(b) for b in bau_besitzer])))
         txt_bau_dat = " sowie ".join(list(dict.fromkeys([name_dativ(b) for b in bau_besitzer])))
+        
         if txt_boden == txt_bau_dat:
-            return f"<strong>BAURECHT</strong><br><br>Sowohl der Grund und Boden als auch das Gebäude gehören <strong>{txt_boden}</strong>. Rechtlich gesehen sind dies jedoch zwei getrennte Grundstücke, die unabhängig voneinander behandelt werden."
+            return f"<strong>BAURECHT</strong><br><br>Sowohl der Grund und Boden als auch das Gebäude gehören <strong>{txt_boden}</strong>. Rechtlich gesehen sind dies jedoch zwei getrennte Grundstücke."
+        
         return f"<strong>BAURECHT</strong><br><br>Der Grund und Boden gehört <strong>{txt_boden}</strong>. Jedoch besitzt <strong>{txt_bau_nom}</strong> hier ein Baurecht. Das Gebäude gehört rechtlich <strong>{txt_bau_dat}</strong>, obwohl der Boden <strong>{txt_boden}</strong> gehört."
 
     if len(boden_besitzer) > 1:
@@ -241,73 +252,94 @@ def generiere_besitz_text(besitz_string, nummern_string):
 
     return f"<strong>VOLLEIGENTUM</strong><br><br>Sowohl der Boden als auch das Gebäude gehören vollumfänglich <strong>{name_dativ(boden_besitzer[0])}</strong>."
 
+# --- APP START ---
 try:
-    df = load_excel()
+    df = load_data()
 
-    st.write("")
+    # Logo & Header
     col_l1, col_logo, col_l3 = st.columns([1, 1.5, 1])
     with col_logo:
-        if os.path.exists(logo_file):
-            st.image(logo_file, use_container_width=True)
+        logo_file = "logo_light.png" if dark_mode else "logo_dark.png"
+        if os.path.exists(logo_file): st.image(logo_file, use_container_width=True)
             
     st.markdown("<div class='main-title'>Wie viel Stadt besitzt die Stadt?</div>", unsafe_allow_html=True)
-    st.markdown("<div class='title-subtext'>Durchsuchen Sie das Immobilienregister auf Basis amtlicher Geodaten.</div>", unsafe_allow_html=True)
+    st.markdown("<div class='title-subtext'>Analyse der Bieler Eigentumsverhältnisse auf Basis amtlicher Geodaten.</div>", unsafe_allow_html=True)
 
-    tab1, tab2 = st.tabs(["Adress-Suche", "Bestandesübersicht"])
+    tab1, tab2 = st.tabs(["Adress-Suche", "Bestandesanalyse"])
 
     with tab1:
         st.write("")
         search_query = st.text_input("Suche", placeholder="Strasse und Hausnummer eingeben...", label_visibility="collapsed")
-        st.write("")
-        
         if search_query:
             results = df[df['Adresse'].str.contains(search_query, case=False, na=False)]
             if not results.empty:
                 for _, row in results.iterrows():
                     with st.expander(f"{row['Adresse']}", expanded=True):
                         st.markdown(f"<div class='info-text'>{generiere_besitz_text(row['Eigentumsverhältnis'], row['Grundstücksnummer(n)'])}</div>", unsafe_allow_html=True)
-                        st.markdown("<hr style='border-top: 1px solid rgba(134, 134, 139, 0.2); margin: 1.5rem 0;'>", unsafe_allow_html=True)
-                        
+                        st.markdown("<hr style='border-top: 1px solid rgba(134,134,139,0.1); margin: 1.5rem 0;'>", unsafe_allow_html=True)
                         c1, c2, c3 = st.columns(3)
                         with c1:
-                            st.markdown("<div class='label-text'>Grundstücksnummer(n)</div>", unsafe_allow_html=True)
+                            st.markdown("<div class='label-text'>Grundstück</div>", unsafe_allow_html=True)
                             st.markdown(f"<div class='value-text'>{str(row['Grundstücksnummer(n)']).replace(' / ', '<br>')}</div>", unsafe_allow_html=True)
                         with c2:
                             st.markdown("<div class='label-text'>Eigentumsverhältnis</div>", unsafe_allow_html=True)
                             st.markdown(f"<div class='value-text'>{bereinige_eigentum_text(row['Eigentumsverhältnis']).replace(' / ', '<br>')}</div>", unsafe_allow_html=True)
                         with c3:
-                            st.markdown("<div class='label-text'>Fläche(n)</div>", unsafe_allow_html=True)
+                            st.markdown("<div class='label-text'>Fläche</div>", unsafe_allow_html=True)
                             st.markdown(f"<div class='value-text'>{str(row['Fläche(n)']).replace(' / ', '<br>')}</div>", unsafe_allow_html=True)
             else:
-                st.markdown("<p class='title-subtext' style='margin-top: 2rem;'>Es wurden keine Einträge gefunden.</p>", unsafe_allow_html=True)
+                st.markdown("<p class='title-subtext' style='margin-top: 2rem;'>Keine Einträge gefunden.</p>", unsafe_allow_html=True)
 
     with tab2:
         st.write("")
+        st.markdown("<div class='label-text'>Daten-Exploration</div>", unsafe_allow_html=True)
+        
+        f1, f2 = st.columns(2)
+        with f1:
+            kat_filter = st.multiselect("Eigentümer-Kategorien", options=df['Kategorie'].unique(), default=df['Kategorie'].unique())
+        with f2:
+            min_flaeche = st.slider("Mindestfläche pro Parzelle (m²)", 0, 15000, 0, step=100)
+        
+        filtered_df = df[(df['Kategorie'].isin(kat_filter)) & (df['Fläche_Zahl'] >= min_flaeche)]
+        
+        st.write("")
         col_m1, col_m2 = st.columns(2)
-        stadt_besitz = df[df['Eigentumsverhältnis'].str.contains("01", na=False)]
-        privat_besitz = df[df['Eigentumsverhältnis'].str.contains("03", na=False)]
-        col_m1.metric("Mit Stadt-Beteiligung", len(stadt_besitz))
-        col_m2.metric("In Privatbesitz", len(privat_besitz))
+        col_m1.metric("Gefilterte Objekte", f"{len(filtered_df):,}")
+        col_m2.metric("Gesamtfläche (m²)", f"{int(filtered_df['Fläche_Zahl'].sum()):,}")
         
-        st.markdown("<hr style='border-top: 1px solid rgba(134, 134, 139, 0.2); margin: 1.5rem 0;'>", unsafe_allow_html=True)
-        st.markdown("<div class='label-text' style='margin-bottom: 1rem;'>Top 10 der grössten städtischen Areale</div>", unsafe_allow_html=True)
+        st.write("---")
         
-        stadt_besitz_sort = stadt_besitz.copy()
-        stadt_besitz_sort['Fläche_Zahl'] = stadt_besitz_sort['Fläche(n)'].str.extract(r'(\d+)').astype(float)
-        top_10 = stadt_besitz_sort.sort_values(by='Fläche_Zahl', ascending=False).head(10)
-        st.dataframe(top_10[['Adresse', 'Fläche(n)', 'Grundstücksnummer(n)']], use_container_width=True, hide_index=True)
+        c_chart, c_list = st.columns([1.5, 1])
+        with c_chart:
+            st.markdown("<div class='label-text'>Verteilung nach Kategorie</div>", unsafe_allow_html=True)
+            fig = px.box(filtered_df, x='Kategorie', y='Fläche_Zahl', color='Kategorie', points="all",
+                         color_discrete_sequence=["#000000", "#86868b", "#d2d2d7"] if not dark_mode else ["#FFFFFF", "#86868b", "#444444"])
+            fig.update_layout(showlegend=False, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', 
+                              margin=dict(t=10, b=10, l=10, r=10), height=400,
+                              font=dict(color="#F5F5F7" if dark_mode else "#111111"))
+            st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+            
+        with c_list:
+            st.markdown("<div class='label-text'>Grösste Einzelparzellen im Filter</div>", unsafe_allow_html=True)
+            top_list = filtered_df.sort_values('Fläche_Zahl', ascending=False).head(10)
+            for _, r in top_list.iterrows():
+                st.markdown(f"""
+                <div style='display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(134,134,139,0.1);'>
+                    <span style='font-size: 0.9rem;'>{r['Adresse']}</span>
+                    <span style='font-weight: 600; font-size: 0.9rem;'>{int(r['Fläche_Zahl']):,}<span style='font-weight:300; font-size:0.7rem; margin-left:2px;'>m²</span></span>
+                </div>""", unsafe_allow_html=True)
 
+    # --- METHODIK ---
     st.markdown(f"""
     <div class='methodology-box'>
         <strong>Methodik & Datenquellen</strong><br>
-        Diese Anwendung basiert auf den öffentlichen Geodaten des WebGIS der Stadt Biel (Stand der letzten Aktualisierung: 26.11.2025). 
-        Da die zugrundeliegenden Rohdaten der Stadt Biel eine Unterteilung in drei spezifische Eigentümergruppen (Stadt Biel, öffentliche 
-        Institutionen und Private) vorgeben, ist eine detailliertere Aufschlüsselung innerhalb dieser Kategorien auf dieser Datenbasis 
-        nicht möglich. Um eine höchstmögliche Genauigkeit zu gewährleisten, wurden die Kategorien mit den amtlichen Daten des 
-        Bundes-Kartenportals (map.geo.admin.ch) abgeglichen und verifiziert. Die Zuordnung erfolgt über die amtlichen Grundstücksnummern. 
+        Diese Anwendung basiert auf den öffentlichen Geodaten des WebGIS der Stadt Biel (Stand: 26.11.2025). 
+        Da die Rohdaten eine Unterteilung in drei spezifische Eigentümergruppen vorgeben, ist eine detailliertere Aufschlüsselung 
+        innerhalb dieser Kategorien technisch nicht möglich. Die Daten wurden mit dem Bundes-Kartenportal (map.geo.admin.ch) 
+        verifiziert. Die Zuordnung erfolgt über die amtlichen Grundstücksnummern. 
         Dies ersetzt kein amtliches Grundbuchdokument.
     </div>
     """, unsafe_allow_html=True)
 
 except Exception as e:
-    st.markdown(f"<p class='title-subtext'>Ein Fehler ist aufgetreten: {e}</p>", unsafe_allow_html=True)
+    st.error(f"Systemfehler: {e}")
