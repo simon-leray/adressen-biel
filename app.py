@@ -142,8 +142,8 @@ div[data-testid="stExpander"] {
         line-height: 1.1;
     }
     [data-testid="stCustomComponentV1"] {
-        margin-top: -1rem !important;
-        margin-bottom: -1.5rem !important;
+        margin-top: -0.5rem !important;
+        margin-bottom: -2.5rem !important;
     }
 }
 .label-text {
@@ -382,7 +382,7 @@ if df is None:
 if os.path.exists(LOTTIE_FILE):
     with open(LOTTIE_FILE, encoding="utf-8") as f:
         lottie_data = json.load(f)
-    st_lottie(lottie_data, height=120, loop=True, quality="high", key="logo")
+    st_lottie(lottie_data, height=100, loop=True, quality="high", key="logo")
 
 st.markdown("<div class='main-title'>Wie viel Stadt besitzt die Stadt?</div>", unsafe_allow_html=True)
 st.markdown("<div class='title-subtext'>Suchportal für den Immobilienbesitz der Stadt Biel</div>", unsafe_allow_html=True)
