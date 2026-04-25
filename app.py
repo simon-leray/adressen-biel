@@ -86,8 +86,9 @@ st.markdown("""
     padding-bottom: 4rem;
     max-width: 900px;
 }
-/* Suchfeld – alle Wrapper */
+/* Suchfeld – alle Wrapper inkl. alle Kinder */
 [data-testid="stTextInput"],
+[data-testid="stTextInput"] *,
 [data-testid="stTextInput"] > div,
 [data-testid="stTextInput"] > div > div {
     overflow: visible !important;
