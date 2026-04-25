@@ -203,15 +203,19 @@ def methodik_als_html(text: str) -> str:
 
 # ── 5. DISCLAIMER POPUP ──────────────────────────────────────────────────────
 
-if not st.session_state.disclaimer_shown:
-    @st.dialog("Wichtiger Hinweis")
-    def show_disclaimer():
-        st.markdown(METHODIK_TEXT)
-        if st.button("Verstanden"):
-            st.session_state.disclaimer_shown = True
-            st.rerun()
-    show_disclaimer()
+@st.fragment
+def disclaimer_fragment():
+    if not st.session_state.disclaimer_shown:
+        @st.dialog("Wichtiger Hinweis")
+        def _show():
+            st.markdown(METHODIK_TEXT)
+            if st.button("Verstanden"):
+                st.session_state.disclaimer_shown = True
+                # Kein st.rerun() nötig: Button-Klick triggert automatisch
+                # einen Fragment-Rerun (nicht die ganze Seite)
+        _show()
 
+disclaimer_fragment()
 
 # ── 6. HILFSFUNKTIONEN ───────────────────────────────────────────────────────
 
