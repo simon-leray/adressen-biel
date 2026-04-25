@@ -157,7 +157,9 @@ div[data-testid="stExpander"] {
         gap: 0.5rem !important;
     }
     [data-testid="column"] {
+        flex: 1 1 0% !important;
         min-width: 0 !important;
+        width: auto !important;
     }
 }
 .label-text {
@@ -421,9 +423,9 @@ with t1:
     # Buttons: natürliche Breite, nebeneinander
     col_btn1, col_btn2, _ = st.columns([1, 1, 4])
     with col_btn1:
-        st.button("🔍 Suchen", use_container_width=True)
+        st.button("🔍 Suchen")
     with col_btn2:
-        st.button("✕ Löschen", on_click=clear_search, use_container_width=True)
+        st.button("✕ Löschen", on_click=clear_search)
 
     # Filter: Desktop = Radio-Pills, Mobile = Selectbox (CSS show/hide)
     cur_idx = next(
