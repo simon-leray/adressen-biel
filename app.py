@@ -551,7 +551,10 @@ with t1:
     elif "Bodenbesitz" in f_mode:   f_df = f_df[f_df['Filter_Kategorie'] == "Bodenbesitz"]
     elif "Gebäudebesitz" in f_mode: f_df = f_df[f_df['Filter_Kategorie'] == "Gebäudebesitz"]
     if search:
-        f_df = f_df[f_df['Adresse'].str.contains(search, case=False, na=False)]
+        # \b stellt sicher, dass nur an Wortgrenzen gematcht wird:
+        # "Ring" trifft "Ring 1", "Ringstrasse" – aber nicht "Fallbringen"
+        pattern = r'\b' + re.escape(search)
+        f_df = f_df[f_df['Adresse'].str.contains(pattern, case=False, na=False, regex=True)]
     f_df = f_df.sort_values('Adresse', key=lambda col: col.map(natural_sort_key))
 
     if f_mode == "Alle Adressen" and not search:
