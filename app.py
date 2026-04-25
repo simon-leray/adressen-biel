@@ -47,9 +47,21 @@ def generiere_besitz_text(besitz_string, nummern_string):
 
     elif "/" in str(besitz_string):
         teile = str(besitz_string).split(" / ")
-        if len(teile) >= 2:
-            return (f"🏢 **Besondere Situation (Baurecht):** Der Grund und Boden gehört **{name_dativ(teile[0])}**. "
-                    f"Das Gebäude darauf gehört rechtlich jedoch **{name_dativ(teile[1])}**.")
+        boden = name_dativ(teile[0])
+        
+        gebaeude_besitzer = []
+        for t in teile[1:]:
+            besitzer = name_dativ(t)
+            if besitzer not in gebaeude_besitzer:
+                gebaeude_besitzer.append(besitzer)
+        
+        if len(gebaeude_besitzer) == 1:
+            gebaeude_text = gebaeude_besitzer[0]
+        else:
+            gebaeude_text = " sowie ".join(gebaeude_besitzer)
+            
+        return (f"🏢 **Besondere Situation (Baurecht):** Der Grund und Boden gehört **{boden}**. "
+                f"Die darauf befindlichen Gebäude oder Gebäudeteile gehören rechtlich jedoch **{gebaeude_text}**.")
     
     return f"🏡 **Vollständiges Eigentum:** Sowohl der Boden als auch das Gebäude gehören vollumfänglich **{name_dativ(besitz_string)}**."
 
