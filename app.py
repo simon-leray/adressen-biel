@@ -114,34 +114,60 @@ def load_geojson_map_data(df):
                     if isinstance(val, dict) and val.get("type") == "FeatureCollection":
                         features.extend(val.get("features", []))
 
-        # SUPER-CLEAN MAPPING: Wir extrahieren alle Zahlen aus Grundstücksnummern
+        # Erweitertes Mapping: Kategorie UND Adresse speichern
         mapping = {}
         for _, row in df.iterrows():
             clean_nums = re.findall(r'\d+', str(row['Grundstücksnummer(n)']))
-            for n in clean_nums: mapping[str(n)] = row['Filter_Kategorie']
+            kat = row['Filter_Kategorie']
+            adr = str(row['Adresse']).strip()
+            
+            for n in clean_nums:
+                n_str = str(n)
+                if n_str not in mapping:
+                    mapping[n_str] = {'kat': kat, 'adresse': adr}
+                else:
+                    # Falls mehrere Adressen auf derselben Parzelle liegen, mit | trennen
+                    if adr and adr not in mapping[n_str]['adresse']:
+                        if mapping[n_str]['adresse']:
+                            mapping[n_str]['adresse'] += f" | {adr}"
+                        else:
+                            mapping[n_str]['adresse'] = adr
         
         for f in features:
             f['geometry']['coordinates'] = recursive_convert(f['geometry']['coordinates'])
             gn = str(f["properties"].get("grst_nummer", "")).strip()
-            # 1. Priorität: Match mit Excel
-            kat = mapping.get(gn, None)
             
-            # 2. Priorität: Fallback auf Rohdaten der Karte (eigentuemer_gr)
+            # Daten aus Excel ziehen (falls vorhanden)
+            map_data = mapping.get(gn, None)
+            kat = map_data['kat'] if map_data else None
+            adr = map_data['adresse'] if map_data and map_data['adresse'] else "Keine Adresse hinterlegt"
+            
+            f["properties"]["adresse"] = adr
+
+            # Fallback, falls nicht im Excel
             if kat is None:
                 egr = str(f["properties"].get("eigentuemer_gr", ""))
                 if egr == "01": kat = "Vollbesitz"
                 else: kat = "Andere"
 
+            # FARBEN-LOGIK AKTUALISIERT NACH DEINEM WUNSCH
             if kat == "Vollbesitz":
-                f["properties"]["fill_color"], f["properties"]["kat_name"] = [0, 122, 255, 200], "Vollbesitz Stadt"
+                f["properties"]["fill_color"] = [0, 122, 255, 200]    # Blau
+                f["properties"]["kat_name"] = "Vollbesitz Stadt"
             elif kat == "Bodenbesitz":
-                f["properties"]["fill_color"], f["properties"]["kat_name"] = [255, 149, 0, 200], "Bodenbesitz Stadt (Baurecht abgegeben)"
+                f["properties"]["fill_color"] = [90, 200, 250, 200]   # Hellblau
+                f["properties"]["kat_name"] = "Bodenbesitz Stadt (Baurecht abgegeben)"
+            elif kat == "Andere":
+                f["properties"]["fill_color"] = [255, 149, 0, 200]    # Orange
+                f["properties"]["kat_name"] = "Privat / Andere"
             elif kat == "Gebäudebesitz":
-                f["properties"]["fill_color"], f["properties"]["kat_name"] = [52, 199, 89, 200], "Gebäudebesitz Stadt (Baurecht erhalten)"
-            else:
-                f["properties"]["fill_color"], f["properties"]["kat_name"] = [142, 142, 147, 80], "Privat / Andere"
+                f["properties"]["fill_color"] = [255, 179, 64, 200]   # Hellorange / Gelb-Orange
+                f["properties"]["kat_name"] = "Gebäudebesitz Stadt (Baurecht erhalten)"
+                
         return features
-    except: return None
+    except Exception as e: 
+        print(f"Fehler: {e}")
+        return None
 
 def bereinige_eigentum_text(text): return re.sub(r'\d{2}:\s*', '', str(text))
 
@@ -206,14 +232,45 @@ try:
                         if st.button("Weitere laden"): st.session_state.lc += 30; st.rerun()
                 else: st.info("Keine Treffer.")
             else: st.info("Bitte Adresse eingeben oder Filter wählen.")
+        
         with t2:
             st.write("")
-            st.markdown("<div class='legend-box'><div class='legend-item'><div class='legend-color' style='background-color:#007AFF;'></div> Vollbesitz (Stadt)</div><div class='legend-item'><div class='legend-color' style='background-color:#FF9500;'></div> Bodenbesitz (Baurecht abg.)</div><div class='legend-item'><div class='legend-color' style='background-color:#34C759;'></div> Gebäudebesitz (Baurecht erh.)</div><div class='legend-item'><div class='legend-color' style='background-color:#8E8E93;'></div> Privat / Andere</div></div>", unsafe_allow_html=True)
+            
+            # --- AKTUALISIERTE LEGENDE ---
+            st.markdown("""
+            <div class='legend-box'>
+                <div class='legend-item'><div class='legend-color' style='background-color:#007AFF;'></div> Vollbesitz (Stadt)</div>
+                <div class='legend-item'><div class='legend-color' style='background-color:#5AC8FA;'></div> Bodenbesitz (Baurecht abg.)</div>
+                <div class='legend-item'><div class='legend-color' style='background-color:#FF9500;'></div> Privat / Andere</div>
+                <div class='legend-item'><div class='legend-color' style='background-color:#FFB340;'></div> Gebäudebesitz (Baurecht erh.)</div>
+            </div>
+            """, unsafe_allow_html=True)
+            
             with st.spinner("Lade Karte..."):
                 geo = load_geojson_map_data(df)
                 if geo:
-                    layer = pdk.Layer("GeoJsonLayer", data={"type": "FeatureCollection", "features": geo}, opacity=0.8, stroked=True, filled=True, get_fill_color="properties.fill_color", get_line_color=[255,255,255,100], line_width_min_pixels=1, pickable=True)
-                    st.pydeck_chart(pdk.Deck(layers=[layer], initial_view_state=pdk.ViewState(latitude=47.1368, longitude=7.2468, zoom=13.5), map_style="mapbox://styles/mapbox/dark-v10" if dark_mode else "mapbox://styles/mapbox/light-v10", tooltip={"text": "Parzelle {grst_nummer}\nKategorie: {kat_name}"}))
+                    layer = pdk.Layer(
+                        "GeoJsonLayer", 
+                        data={"type": "FeatureCollection", "features": geo}, 
+                        opacity=0.85, 
+                        stroked=True, 
+                        filled=True, 
+                        get_fill_color="properties.fill_color", 
+                        get_line_color=[255,255,255,100], 
+                        line_width_min_pixels=1, 
+                        pickable=True
+                    )
+                    
+                    # --- AKTUALISIERTER TOOLTIP ---
+                    st.pydeck_chart(pdk.Deck(
+                        layers=[layer], 
+                        initial_view_state=pdk.ViewState(latitude=47.1368, longitude=7.2468, zoom=13.5), 
+                        map_style="mapbox://styles/mapbox/dark-v10" if dark_mode else "mapbox://styles/mapbox/light-v10", 
+                        tooltip={
+                            "html": "<b>Parzelle:</b> {grst_nummer}<br/><b>Adresse:</b> {adresse}<br/><b>Kategorie:</b> {kat_name}",
+                            "style": {"backgroundColor": "steelblue", "color": "white"}
+                        }
+                    ))
                 else: st.warning("Kartendaten fehlen.")
         st.markdown("<div class='methodology-box'><strong>Methodik:</strong> WebGIS Biel (26.11.2025).</div>", unsafe_allow_html=True)
 except Exception as e: st.error(f"Fehler: {e}")
