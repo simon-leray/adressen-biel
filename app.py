@@ -16,34 +16,42 @@ def generiere_besitz_text(besitz_string, nummern_string):
     if not besitz_string: 
         return "Zu diesem Objekt liegen leider keine detaillierten Eigentumsdaten vor."
     
-    def name_finden(text):
+    def name_dativ(text):
         t = str(text).lower()
         if "01" in t: return "der Stadt Biel"
         if "03" in t: return "einer Privatperson oder privaten Firma"
         if "02" in t: return "einer öffentlichen Institution (Bund, Kanton oder SBB)"
         return "einem unbekannten Eigentümer"
 
+    def name_nominativ(text):
+        t = str(text).lower()
+        if "01" in t: return "die Stadt Biel"
+        if "03" in t: return "eine Privatperson oder private Firma"
+        if "02" in t: return "eine öffentliche Institution (Bund, Kanton oder SBB)"
+        return "ein unbekannter Eigentümer"
+
     if "Quellenrecht" in str(nummern_string):
         if "/" in str(besitz_string):
             teile = str(besitz_string).split(" / ")
-            boden_besitzer = name_finden(teile[0])
-            quellen_besitzer = name_finden(teile[-1])
+            boden_besitzer = name_dativ(teile[0])
+            quellen_besitzer = name_nominativ(teile[-1])
             
             return (f"💧 **Quellenrecht:** Der Grund und Boden dieser Parzelle gehört **{boden_besitzer}**. "
                     f"Jedoch besitzt **{quellen_besitzer}** hier ein sogenanntes Quellenrecht. "
                     f"Das bedeutet: Diese Partei hat das im Grundbuch verankerte Recht, eine Wasserquelle auf diesem fremden Grundstück zu fassen und das Wasser zu nutzen.")
         else:
-            besitzer = name_finden(besitz_string)
-            return (f"💧 **Quellenrecht:** Der Grund und Boden sowie das dazugehörige Quellenrecht gehören **{besitzer}**. "
-                    f"Das bedeutet: Der Eigentümer hat hier das speziell im Grundbuch verankerte Recht, eine Wasserquelle auf dem Grundstück zu fassen und zu nutzen.")
+            besitzer_dat = name_dativ(besitz_string)
+            besitzer_nom = name_nominativ(besitz_string)
+            return (f"💧 **Quellenrecht:** Der Grund und Boden sowie das dazugehörige Quellenrecht gehören **{besitzer_dat}**. "
+                    f"Das bedeutet: **{besitzer_nom}** hat hier das speziell im Grundbuch verankerte Recht, eine Wasserquelle auf dem Grundstück zu fassen und zu nutzen.")
 
     elif "/" in str(besitz_string):
         teile = str(besitz_string).split(" / ")
         if len(teile) >= 2:
-            return (f"🏢 **Besondere Situation (Baurecht):** Der Grund und Boden gehört **{name_finden(teile[0])}**. "
-                    f"Das Gebäude darauf gehört rechtlich jedoch **{name_finden(teile[1])}**.")
+            return (f"🏢 **Besondere Situation (Baurecht):** Der Grund und Boden gehört **{name_dativ(teile[0])}**. "
+                    f"Das Gebäude darauf gehört rechtlich jedoch **{name_dativ(teile[1])}**.")
     
-    return f"🏡 **Vollständiges Eigentum:** Sowohl der Boden als auch das Gebäude gehören vollumfänglich **{name_finden(besitz_string)}**."
+    return f"🏡 **Vollständiges Eigentum:** Sowohl der Boden als auch das Gebäude gehören vollumfänglich **{name_dativ(besitz_string)}**."
 
 try:
     df = load_excel()
@@ -80,7 +88,6 @@ try:
                 st.warning("Keine Treffer unter dieser Adresse gefunden.")
 
     with tab2:
-        st.header("Auswertung")
         col_m1, col_m2 = st.columns(2)
         
         stadt_besitz = df[df['Eigentumsverhältnis'].str.contains("01", na=False)]
@@ -102,5 +109,5 @@ try:
         )
 
 except Exception as e:
-    st.error(f"Konnte die App nicht laden. Ist die Datei 'Biel_Adressregister_Final.xlsx' im selben Ordner?")
+    st.error(f"Fehler beim Laden der App.")
     st.info(f"Details: {e}")
