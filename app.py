@@ -159,22 +159,25 @@ div[data-testid="stWidgetLabel"] p {
     color: #F5F5F7 !important;
 }
 
-/* Erzwingt Sichtbarkeit des Placeholders im Dark Mode */
 .stTextInput input::placeholder {
     color: #86868B !important;
     opacity: 1;
 }
 
-/* EXPANDER DARK MODE - KOMPLETT-FIX */
+/* EXPANDER DARK MODE - RADIKAL-FIX */
+/* Wir treffen hier alle möglichen Container-Klassen von Streamlit Expandern */
 div[data-testid="stExpander"], 
 div[data-testid="stExpander"] > div,
 div[data-testid="stExpanderDetails"],
-[data-testid="stExpander"] {
+div[class*="st-emotion-cache"] > div[data-testid="stExpanderDetails"],
+.st-emotion-cache-1h9usn2, 
+.st-emotion-cache-6q9sum,
+.st-emotion-cache-eqm3v3 {
     background-color: #1C1C1E !important;
     border-color: #333336 !important;
 }
 
-/* Verhindert Hover-Aufhellung bei Expandern */
+/* Verhindert Hover-Aufhellung */
 div[data-testid="stExpander"]:hover,
 div[data-testid="stExpander"] summary:hover {
     background-color: #2C2C2E !important;
@@ -184,7 +187,8 @@ div[data-testid="stExpander"] summary:hover {
 div[data-testid="stExpander"] summary, 
 div[data-testid="stExpander"] summary p,
 div[data-testid="stExpander"] p,
-div[data-testid="stExpander"] span {
+div[data-testid="stExpander"] span,
+div[data-testid="stExpander"] strong {
     color: #F5F5F7 !important;
 }
 
