@@ -91,29 +91,32 @@ st.markdown("""
 .stTextInput > div > div {
     overflow: visible !important;
 }
-/* Normaler Zustand: der base-web Container bekommt unser Design */
-.stTextInput [data-baseweb="base-input"] {
+/* Alles innerhalb des Inputs auf null setzen */
+.stTextInput [data-baseweb="base-input"],
+.stTextInput [data-baseweb="base-input"] * {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+}
+/* Nur der äussere div bekommt unser Design */
+.stTextInput > div > div {
     border-radius: 12px !important;
     border: 1px solid #EAEAEA !important;
     box-shadow: 0 8px 30px rgba(0,0,0,0.06) !important;
     background-color: #FFFFFF !important;
     margin-bottom: 8px;
 }
-/* Fokus: nur leicht dunklerer Rand, kein schwarzer Ring */
-.stTextInput [data-baseweb="base-input"]:focus-within {
+/* Fokus: dezenter grauer Rand statt schwarz */
+.stTextInput > div > div:focus-within {
     border: 1px solid #CCCCCC !important;
     box-shadow: 0 8px 30px rgba(0,0,0,0.06) !important;
-    outline: none !important;
 }
-/* Das eigentliche Input-Element: kein eigener Border, kein Outline */
-.stTextInput [data-baseweb="base-input"] input {
+/* Text-Styling des Inputs */
+.stTextInput input {
     font-size: 1.2rem !important;
     padding: 1.2rem 1.5rem !important;
     color: #111111 !important;
-    background: transparent !important;
-    border: none !important;
-    outline: none !important;
-    box-shadow: none !important;
 }
 div[data-testid="stExpander"] {
     border-radius: 12px;
@@ -392,7 +395,7 @@ t1, t2 = st.tabs(["🔍 Suche & Recherche", "Interaktive Karte"])
 with t1:
     search = st.text_input(
         "Suche",
-        placeholder="Strasse und Hausnummer (z.B. Ring 16)...",
+        placeholder="Strasse und Hausnummer",
         label_visibility="collapsed",
     )
     f_mode = st.radio("Filter", FILTER_OPTIONEN, horizontal=True, label_visibility="collapsed")
