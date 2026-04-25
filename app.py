@@ -265,6 +265,22 @@ def methodik_als_html(text: str) -> str:
     return html.replace('\n', '<br>')
 
 
+# Französische Strassentypen stehen fast immer am Wortanfang
+_FR_PREFIX = re.compile(
+    r'^\s*(rue|avenue|ave\.|place|chemin|route|voie|boulevard|allée|allee|'
+    r'impasse|passage|quai|sentier|promenade|grand-rue|côte|cote)\b',
+    re.IGNORECASE,
+)
+
+def deutsch_zuerst(adresse: str) -> str:
+    """Bei zweisprachigen Adressen (DE / FR) immer den deutschen Teil vorne."""
+    if ' / ' not in str(adresse):
+        return adresse
+    a, b = str(adresse).split(' / ', 1)
+    if _FR_PREFIX.match(a) and not _FR_PREFIX.match(b):
+        return f"{b} / {a}"
+    return adresse
+
 # ── 5. HILFSFUNKTIONEN ───────────────────────────────────────────────────────
 
 def _eigentuemer_code(code_str: str) -> str | None:
@@ -377,6 +393,7 @@ def load_data() -> pd.DataFrame | None:
         st.error(f"Datei nicht gefunden: {EXCEL_FILE}")
         return None
     df = pd.read_excel(EXCEL_FILE, sheet_name=SHEET_NAME).fillna("")
+    df['Adresse'] = df['Adresse'].apply(deutsch_zuerst)
     df['Filter_Kategorie'] = df.apply(bestimme_kategorie, axis=1)
     return df
 
