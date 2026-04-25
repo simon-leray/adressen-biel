@@ -378,13 +378,11 @@ df = load_data()
 if df is None:
     st.stop()
 
-# Logo (Lottie-Animation)
+# Logo (Lottie-Animation – volle Breite wegen 1536x280 Canvas)
 if os.path.exists(LOTTIE_FILE):
     with open(LOTTIE_FILE, encoding="utf-8") as f:
         lottie_data = json.load(f)
-    col_logo = st.columns([1, 1, 1])[1]
-    with col_logo:
-        st_lottie(lottie_data, height=180, loop=True, quality="high", key="logo")
+    st_lottie(lottie_data, height=160, loop=True, quality="high", key="logo")
 
 st.markdown("<div class='main-title'>Wie viel Stadt besitzt die Stadt?</div>", unsafe_allow_html=True)
 st.markdown("<div class='title-subtext'>Suchportal für den Immobilienbesitz der Stadt Biel</div>", unsafe_allow_html=True)
