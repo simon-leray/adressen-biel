@@ -51,9 +51,9 @@ KATEGORIE_NAMEN = {
 
 FILTER_OPTIONEN = [
     "Alle Adressen",
-    "Vollbesitz der Stadt (Gebäude und Land)",
-    "Bodenbesitz der Stadt (Land im Baurecht abgegeben)",
-    "Gebäudebesitz der Stadt (Land im Baurecht erhalten)",
+    "Vollbesitz (Gebäude & Land)",
+    "Bodenbesitz (Baurecht abgegeben)",
+    "Gebäudebesitz (Baurecht erhalten)",
 ]
 FILTER_HINWEISE = {
     "Alle Adressen":   "💡 Zeigt das gesamte Register. <strong>Bitte Suchbegriff eingeben.</strong>",
@@ -136,6 +136,8 @@ div[data-testid="stExpander"] {
     margin-top: -0.5rem !important;
     margin-bottom: -1.5rem !important;
 }
+/* Desktop: Selectbox verstecken (nur Radio-Pills sichtbar) */
+[data-testid="stSelectbox"] { display: none !important; }
 @media (max-width: 768px) {
     .main-title {
         font-size: 2rem;
@@ -145,7 +147,10 @@ div[data-testid="stExpander"] {
         margin-top: -0.5rem !important;
         margin-bottom: -2.5rem !important;
     }
-    /* Zwingt die Spalten (Buttons) auf Mobile nebeneinander */
+    /* Mobile: Radio-Pills verstecken, Selectbox zeigen */
+    [data-testid="stRadio"] { display: none !important; }
+    [data-testid="stSelectbox"] { display: block !important; }
+    /* Suchfeld-Buttons nebeneinander */
     [data-testid="column"] {
         width: calc(50% - 8px) !important;
         flex: 1 1 calc(50% - 8px) !important;
@@ -395,7 +400,7 @@ if os.path.exists(LOTTIE_FILE):
 st.markdown("<div class='main-title'>Wie viel Stadt besitzt die Stadt?</div>", unsafe_allow_html=True)
 st.markdown("<div class='title-subtext'>Suchportal für den Immobilienbesitz der Stadt Biel</div>", unsafe_allow_html=True)
 
-t1, t2 = st.tabs(["🔍 Suche & Recherche", "Interaktive Karte"])
+t1, t2 = st.tabs(["🔍 Suche", "Interaktive Karte"])
 
 # ── Tab 1: Suche ─────────────────────────────────────────────────────────────
 with t1:
