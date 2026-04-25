@@ -5,7 +5,6 @@ import re
 import urllib.parse
 import json
 import pydeck as pdk
-import plotly.express as px
 
 # --- 1. SEITENKONFIGURATION ---
 st.set_page_config(
@@ -30,7 +29,6 @@ div[data-testid="stExpander"] { border-radius: 12px; margin-bottom: 1rem; backgr
 .main-title { text-align: center; font-weight: 700; font-size: 2.8rem; letter-spacing: -0.03em; margin-top: 1rem; color: #111111 !important; }
 .title-subtext { text-align: center; color: #888888 !important; margin-bottom: 2rem; font-size: 1.05rem; }
 .label-text { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #86868B !important; margin-bottom: 0.5rem; }
-.fact-card { padding: 2rem; border-radius: 16px; background-color: #FFFFFF; border: 1px solid #EAEAEA; margin-bottom: 1rem; }
 .methodology-box { margin-top: 4rem; padding: 2rem; border-radius: 12px; background-color: #F2F2F7; font-size: 0.9rem; color: #555555; line-height: 1.6; }
 .stTabs [aria-selected="true"] { color: #111111 !important; border-bottom: 2px solid #111111 !important; }
 div[role="radiogroup"] { gap: 8px !important; margin-top: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
@@ -50,7 +48,7 @@ dark_css = """
 div[data-testid="stExpander"], div[data-testid="stExpander"] *, div[data-testid="stExpanderDetails"] { background-color: #1C1C1E !important; border-color: #333336 !important; }
 div[data-testid="stExpander"] summary p, .main-title, .info-text, .value-text { color: #F5F5F7 !important; }
 .stTextInput > div > div > input { background-color: #1C1C1E !important; border-color: #333336 !important; color: #F5F5F7 !important; }
-.fact-card, .legend-box { background-color: #1C1C1E !important; border-color: #333336 !important; }
+.legend-box { background-color: #1C1C1E !important; border-color: #333336 !important; }
 .legend-item { color: #F5F5F7 !important; }
 div[role="radiogroup"] > label { background-color: #1C1C1E !important; border-color: #333336 !important; }
 div[role="radiogroup"] > label:has(input:checked) { background-color: #FFFFFF !important; border-color: #FFFFFF !important; }
@@ -119,8 +117,7 @@ def load_geojson_map_data(df):
         for _, row in df.iterrows():
             clean_nums = re.findall(r'\d+', str(row['Grundstücksnummer(n)']))
             kat = row['Filter_Kategorie']
-            for n in clean_nums:
-                mapping[str(n)] = kat
+            for n in clean_nums: mapping[str(n)] = kat
         
         for f in features:
             f['geometry']['coordinates'] = recursive_convert(f['geometry']['coordinates'])
@@ -142,12 +139,10 @@ def load_geojson_map_data(df):
                 f["properties"]["line_color"], f["properties"]["fill_color"], f["properties"]["kat_name"] = [255, 179, 64, 255], [255, 179, 64, 60], "Gebäudebesitz Stadt (Baurecht erhalten)"
                 
         return features
-    except Exception as e: 
-        return None
+    except: return None
 
 def bereinige_eigentum_text(text): return re.sub(r'\d{2}:\s*', '', str(text))
 
-# --- NEU: WIEDERHERGESTELLTER, DETAILLIERTER BESITZ-TEXT ---
 def generiere_besitz_text(besitz_string, nummern_string):
     if not besitz_string: return "Keine detaillierten Daten verfügbar."
     
@@ -201,7 +196,6 @@ def generiere_besitz_text(besitz_string, nummern_string):
     txt_boden = " sowie ".join(list(dict.fromkeys([name_dativ(b) for b in boden_besitzer])))
     return f"<strong>VOLLEIGENTUM</strong><br><br>Sowohl der Grund und Boden als auch das darauf stehende Gebäude gehören vollumfänglich <strong>{txt_boden}</strong>."
 
-
 # --- 5. APP RENDERING ---
 try:
     df = load_data()
@@ -213,19 +207,29 @@ try:
         st.markdown("<div class='main-title'>Wie viel Stadt besitzt die Stadt?</div>", unsafe_allow_html=True)
         st.markdown("<div class='title-subtext'>Recherche-Portal für das Immobilienregister Biel</div>", unsafe_allow_html=True)
         
-        # --- NEU: DREI TABS ---
-        t1, t2, t3 = st.tabs(["🔍 Suche & Recherche", "📊 Facts & Diagramme", "🗺️ Interaktive Karte"])
+        t1, t2 = st.tabs(["🔍 Suche & Recherche", "🗺️ Interaktive Areal-Karte"])
         
         with t1:
             st.write("")
             search = st.text_input("Suche", placeholder="Strasse und Hausnummer (z.B. Ring 16)...", label_visibility="collapsed")
             f_opt = ["Alle Adressen", "Vollbesitz der Stadt (Gebäude und Land)", "Bodenbesitz der Stadt (Land im Baurecht abgegeben)", "Gebäudebesitz der Stadt (Land im Baurecht erhalten)"]
             f_mode = st.radio("Eigentumstyp", f_opt, horizontal=True, label_visibility="collapsed")
+            
+            if f_mode == "Alle Adressen":
+                st.markdown("<p style='color:#888888; font-size:0.85rem; margin-top:-10px; margin-bottom:20px;'>💡 Zeigt das gesamte Immobilienregister. <strong>Bitte Suchbegriff eingeben.</strong></p>", unsafe_allow_html=True)
+            elif f_mode == "Vollbesitz der Stadt (Gebäude und Land)":
+                st.markdown("<p style='color:#888888; font-size:0.85rem; margin-top:-10px; margin-bottom:20px;'>💡 Adressen, bei denen Boden und Gebäude vollständig der Stadt Biel gehören.</p>", unsafe_allow_html=True)
+            elif f_mode == "Bodenbesitz der Stadt (Land im Baurecht abgegeben)":
+                st.markdown("<p style='color:#888888; font-size:0.85rem; margin-top:-10px; margin-bottom:20px;'>💡 Die Stadt besitzt das Land, hat es aber an Dritte im Baurecht abgegeben.</p>", unsafe_allow_html=True)
+            elif f_mode == "Gebäudebesitz der Stadt (Land im Baurecht erhalten)":
+                st.markdown("<p style='color:#888888; font-size:0.85rem; margin-top:-10px; margin-bottom:20px;'>💡 Der Boden gehört jemand anderem, aber die Stadt besitzt darauf ein Gebäude im Baurecht.</p>", unsafe_allow_html=True)
+
             f_df = df.copy()
             if "Vollbesitz" in f_mode: f_df = f_df[f_df['Filter_Kategorie'] == "Vollbesitz"]
             elif "Bodenbesitz" in f_mode: f_df = f_df[f_df['Filter_Kategorie'] == "Bodenbesitz"]
             elif "Gebäudebesitz" in f_mode: f_df = f_df[f_df['Filter_Kategorie'] == "Gebäudebesitz"]
             if search: f_df = f_df[f_df['Adresse'].str.contains(search, case=False, na=False)]
+            
             if not (f_mode == "Alle Adressen" and search == ""):
                 if not f_df.empty:
                     st.markdown(f"<div style='margin-bottom:1rem; opacity:0.6; font-size:0.8rem;'>{len(f_df)} Treffer</div>", unsafe_allow_html=True)
@@ -246,53 +250,6 @@ try:
             else: st.info("Bitte Adresse eingeben oder Filter wählen.")
         
         with t2:
-            st.write("")
-            stadt_voll = df[df['Filter_Kategorie'] == "Vollbesitz"]
-            stadt_boden = df[df['Filter_Kategorie'] == "Bodenbesitz"]
-            total_flaeche_boden = stadt_voll['Fläche_Zahl'].sum() + stadt_boden['Fläche_Zahl'].sum()
-            baurecht_ab_flaeche = stadt_boden['Fläche_Zahl'].sum()
-            
-            c1, c2 = st.columns(2)
-            with c1:
-                st.markdown(f"<div class='fact-card'><span class='label-text'>Stadtbesitz Total (Boden)</span><br><div style='font-size:2.2rem;'>{int(total_flaeche_boden):,} m²</div><span>ca. {int(total_flaeche_boden/7140)} Fussballfelder.</span></div>", unsafe_allow_html=True)
-                st.markdown(f"<div class='fact-card'><span class='label-text'>Strategisches Baurecht</span><br><div style='font-size:2.2rem;'>{int(baurecht_ab_flaeche):,} m²</div><span>Von der Stadt an Dritte abgegebene Baurechtsfläche.</span></div>", unsafe_allow_html=True)
-            with c2:
-                st.markdown(f"<div class='fact-card'><span class='label-text'>Areal-Anteil</span><br><div style='font-size:2.2rem;'>{total_flaeche_boden/df['Fläche_Zahl'].sum()*100:.1f}%</div><span>am gesamten erfassten Register.</span></div>", unsafe_allow_html=True)
-                st.markdown(f"<div class='fact-card'><span class='label-text'>Volleigentum</span><br><div style='font-size:2.2rem;'>{len(stadt_voll)}</div><span>Adressen ohne Fremdnutzung durch Baurecht.</span></div>", unsafe_allow_html=True)
-
-            # --- NEU: INTERAKTIVES DIAGRAMM (PLOTLY) ---
-            st.markdown("<div class='label-text' style='margin-top:2rem; text-align:center;'>Verteilung der erfassten Gesamtfläche</div>", unsafe_allow_html=True)
-            
-            cat_area = df.groupby('Filter_Kategorie')['Fläche_Zahl'].sum().reset_index()
-            rename_map = {
-                "Vollbesitz": "Vollbesitz (Stadt)",
-                "Bodenbesitz": "Bodenbesitz (Baurecht abgegeben)",
-                "Gebäudebesitz": "Gebäudebesitz (Baurecht erhalten)",
-                "Andere": "Privat / Andere"
-            }
-            cat_area['Kategorie'] = cat_area['Filter_Kategorie'].map(rename_map)
-            
-            # Farben passend zur Karte
-            color_map = {
-                "Vollbesitz (Stadt)": "#007AFF", 
-                "Bodenbesitz (Baurecht abgegeben)": "#5AC8FA", 
-                "Privat / Andere": "#FF9500", 
-                "Gebäudebesitz (Baurecht erhalten)": "#FFB340"
-            }
-            
-            fig = px.pie(cat_area, values='Fläche_Zahl', names='Kategorie', hole=0.45, color='Kategorie', color_discrete_map=color_map)
-            fig.update_traces(textposition='inside', textinfo='percent')
-            fig.update_layout(
-                showlegend=True, 
-                legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
-                margin=dict(t=20, b=0, l=0, r=0), 
-                paper_bgcolor='rgba(0,0,0,0)', 
-                plot_bgcolor='rgba(0,0,0,0)',
-                font=dict(color="#F5F5F7" if dark_mode else "#111111", size=13)
-            )
-            st.plotly_chart(fig, use_container_width=True)
-
-        with t3:
             st.write("")
             st.markdown("""
             <div class='legend-box'>
@@ -318,8 +275,7 @@ try:
                         tooltip={"html": "<b>Parzelle:</b> {grst_nummer}<br/><b>Kategorie:</b> {kat_name}", "style": {"backgroundColor": "steelblue", "color": "white"}}
                     ))
                 else: st.warning("Kartendaten fehlen.")
-                
-        # --- NEU: AUSFÜHRLICHE METHODIK ---
+
         st.markdown("""
         <div class='methodology-box'>
             <strong>Methodik & Datenquellen:</strong><br><br>
