@@ -30,72 +30,88 @@ def generiere_besitz_text(besitz_string, nummern_string):
         if "02" in t: return "eine öffentliche Institution (Bund, Kanton oder SBB)"
         return "ein unbekannter Eigentümer"
 
-    if "Quellenrecht" in str(nummern_string):
-        if "/" in str(besitz_string):
-            teile = str(besitz_string).split(" / ")
-            boden_besitzer = name_dativ(teile[0])
-            quellen_besitzer = name_nominativ(teile[-1])
-            
-            return (f"💧 **Quellenrecht:** Der Grund und Boden dieser Parzelle gehört **{boden_besitzer}**. "
-                    f"Jedoch besitzt **{quellen_besitzer}** hier ein sogenanntes Quellenrecht. "
-                    f"Das bedeutet: Diese Partei hat das im Grundbuch verankerte Recht, eine Wasserquelle auf diesem fremden Grundstück zu fassen und das Wasser zu nutzen.")
-        else:
-            besitzer_dat = name_dativ(besitz_string)
-            besitzer_nom = name_nominativ(besitz_string)
-            return (f"💧 **Quellenrecht:** Der Grund und Boden sowie das dazugehörige Quellenrecht gehören **{besitzer_dat}**. "
-                    f"Das bedeutet: **{besitzer_nom}** hat hier das speziell im Grundbuch verankerte Recht, eine Wasserquelle auf dem Grundstück zu fassen und zu nutzen.")
-
-    elif "/" in str(besitz_string):
-        teile = str(besitz_string).split(" / ")
-        boden = name_dativ(teile[0])
-        
-        gebaeude_besitzer = []
-        for t in teile[1:]:
-            besitzer = name_dativ(t)
-            if besitzer not in gebaeude_besitzer:
-                gebaeude_besitzer.append(besitzer)
-        
-        if len(gebaeude_besitzer) == 1 and gebaeude_besitzer[0] == boden:
-            return (f"🏢 **Besondere Situation (Baurecht):** Sowohl der Grund und Boden als auch das Gebäude gehören **{boden}**. "
-                    f"Rechtlich gesehen sind dies jedoch zwei getrennte Grundstücke (Liegenschaft und Baurecht).")
-        
-        if len(gebaeude_besitzer) == 1:
-            gebaeude_text = gebaeude_besitzer[0]
-        else:
-            gebaeude_text = " sowie ".join(gebaeude_besitzer)
-            
-        return (f"🏢 **Besondere Situation (Baurecht):** Der Grund und Boden gehört **{boden}**. "
-                f"Die darauf befindlichen Gebäude oder Gebäudeteile gehören rechtlich jedoch **{gebaeude_text}**.")
+    besitzer_liste = str(besitz_string).split(" / ")
+    info_liste = str(nummern_string).split(" / ")
     
-    return f"🏡 **Vollständiges Eigentum:** Sowohl der Boden als auch das Gebäude gehören vollumfänglich **{name_dativ(besitz_string)}**."
+    # Daten sortieren nach Typ
+    boden_besitzer = []
+    bau_besitzer = []
+    quelle_besitzer = []
+    
+    for i in range(len(besitzer_liste)):
+        b = besitzer_liste[i]
+        info = info_liste[i] if i < len(info_liste) else ""
+        
+        if "Quellenrecht" in info:
+            quelle_besitzer.append(b)
+        elif "Baurecht" in info:
+            bau_besitzer.append(b)
+        else:
+            boden_besitzer.append(b)
+
+    # FALL 1: Quellenrecht
+    if quelle_besitzer:
+        wer_quelle = name_nominativ(quelle_besitzer[0])
+        if boden_besitzer:
+            wer_boden = name_dativ(boden_besitzer[0])
+            return (f"💧 **Quellenrecht:** Der Grund und Boden dieser Parzelle gehört **{wer_boden}**. "
+                    f"Jedoch besitzt **{wer_quelle}** hier ein Quellenrecht. Das bedeutet: Diese Partei "
+                    f"darf auf diesem fremden Grundstück eine Wasserquelle fassen und nutzen.")
+        else:
+            return (f"💧 **Quellenrecht:** Sowohl der Boden als auch das Recht zur Wassernutzung gehören **{name_dativ(quelle_besitzer[0])}**.")
+
+    # FALL 2: Baurecht (Gebäude und Boden getrennt)
+    if bau_besitzer:
+        # Einzigartige Besitzer sammeln für die Grammatik
+        einzig_boden = list(dict.fromkeys([name_dativ(b) for b in boden_besitzer]))
+        einzig_bau = list(dict.fromkeys([name_dativ(b) for b in bau_besitzer]))
+        einzig_bau_nom = list(dict.fromkeys([name_nominativ(b) for b in bau_besitzer]))
+        
+        txt_boden = " sowie ".join(einzig_boden)
+        txt_bau = " sowie ".join(einzig_bau)
+        txt_bau_nom = " sowie ".join(einzig_bau_nom)
+
+        # Spezialfall: Gleiche Kategorie besitzt beides
+        if txt_boden == txt_bau:
+            return (f"🏢 **Besondere Situation (Baurecht):** Sowohl der Grund und Boden als auch das Gebäude gehören **{txt_boden}**. "
+                    f"Rechtlich gesehen sind dies jedoch zwei getrennte Grundstücke, die unabhängig voneinander behandelt werden.")
+        
+        return (f"🏢 **Besondere Situation (Baurecht):** Der Grund und Boden gehört **{txt_boden}**. "
+                f"Jedoch besitzt **{txt_bau_nom}** hier ein Baurecht. Das bedeutet: Das Gebäude gehört rechtlich **{txt_bau}**, obwohl der Boden jemand anderem gehört.")
+
+    # FALL 3: Mehrere Böden (Grenz-Reiter)
+    if len(boden_besitzer) > 1:
+        einzig_boden = list(dict.fromkeys([name_dativ(b) for b in boden_besitzer]))
+        txt_boden = " sowie ".join(einzig_boden)
+        return (f"🏘️ **Grenzfall:** Dieses Gebäude steht auf mehreren Grundstücken gleichzeitig. "
+                f"Der gesamte Boden gehört **{txt_boden}**.")
+
+    # FALL 4: Normalfall
+    return f"🏡 **Vollständiges Eigentum:** Sowohl der Boden als auch das Gebäude gehören vollumfänglich **{name_dativ(boden_besitzer[0])}**."
 
 try:
     df = load_excel()
-    
     st.title("🏛️ Immobilien-Register der Stadt Biel")
     st.markdown("Durchsuche die Eigentumsverhältnisse aller Gebäude auf Basis amtlicher Geodaten.")
 
-    tab1, tab2 = st.tabs(["🔍 Adress-Suche", "📊 Stadt-Portfolio & Statistik"])
+    tab1, tab2 = st.tabs(["🔍 Adress-Suche", "📊 Bestandesübersicht"])
 
     with tab1:
         search_query = st.text_input("Adresse suchen (z.B. Südstrasse 82):", "")
-        
         if search_query:
             results = df[df['Adresse'].str.contains(search_query, case=False, na=False)]
-            
             if not results.empty:
                 st.success(f"**{len(results)} Ergebnis(se) gefunden:**")
                 for _, row in results.iterrows():
                     with st.expander(f"📍 {row['Adresse']}", expanded=True):
                         st.info(generiere_besitz_text(row['Eigentumsverhältnis'], row['Grundstücksnummer(n)']))
-                        
                         st.markdown("---")
                         c1, c2, c3 = st.columns(3)
                         with c1:
                             st.caption("Grundstücksnummer(n)")
                             st.write(str(row['Grundstücksnummer(n)']).replace(" / ", "\n\n"))
                         with c2:
-                            st.caption("Eigentumsverhältnis")
+                            st.caption("Technisches Eigentumsverhältnis")
                             st.write(str(row['Eigentumsverhältnis']).replace(" / ", "\n\n"))
                         with c3:
                             st.caption("Fläche(n)")
@@ -104,27 +120,17 @@ try:
                 st.warning("Keine Treffer unter dieser Adresse gefunden.")
 
     with tab2:
-        st.header("Bestandesübersicht")
         col_m1, col_m2 = st.columns(2)
-        
         stadt_besitz = df[df['Eigentumsverhältnis'].str.contains("01", na=False)]
         privat_besitz = df[df['Eigentumsverhältnis'].str.contains("03", na=False)]
-        
         col_m1.metric("Adressen mit Stadt-Beteiligung", len(stadt_besitz))
         col_m2.metric("Adressen in Privatbesitz", len(privat_besitz))
         
-        st.markdown("### Top 10 der grössten städtischen Areale (Bebaute Parzellen)")
-        
+        st.markdown("### Top 10 der grössten städtischen Areale")
         stadt_besitz_sort = stadt_besitz.copy()
         stadt_besitz_sort['Fläche_Zahl'] = stadt_besitz_sort['Fläche(n)'].str.extract(r'(\d+)').astype(float)
         top_10 = stadt_besitz_sort.sort_values(by='Fläche_Zahl', ascending=False).head(10)
-        
-        st.dataframe(
-            top_10[['Adresse', 'Fläche(n)', 'Grundstücksnummer(n)']],
-            use_container_width=True,
-            hide_index=True
-        )
+        st.dataframe(top_10[['Adresse', 'Fläche(n)', 'Grundstücksnummer(n)']], use_container_width=True, hide_index=True)
 
 except Exception as e:
-    st.error(f"Fehler beim Laden der App.")
-    st.info(f"Details: {e}")
+    st.error(f"Fehler beim Laden der App. Details: {e}")
