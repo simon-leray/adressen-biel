@@ -91,15 +91,14 @@ st.markdown("""
 .stTextInput > div > div {
     overflow: visible !important;
 }
-/* Alles innerhalb des Inputs auf null setzen */
-.stTextInput [data-baseweb="base-input"],
-.stTextInput [data-baseweb="base-input"] * {
+/* Streamlits internen Border/Outline komplett entfernen */
+.stTextInput div[data-baseweb="base-input"] {
     border: none !important;
     outline: none !important;
     box-shadow: none !important;
-    background: transparent !important;
+    background-color: #FFFFFF !important;
 }
-/* Nur der äussere div bekommt unser Design */
+/* Unser äusserer Container: Border + Schatten */
 .stTextInput > div > div {
     border-radius: 12px !important;
     border: 1px solid #EAEAEA !important;
@@ -107,16 +106,19 @@ st.markdown("""
     background-color: #FFFFFF !important;
     margin-bottom: 8px;
 }
-/* Fokus: dezenter grauer Rand statt schwarz */
+/* Fokus: dezenter grauer Rand */
 .stTextInput > div > div:focus-within {
-    border: 1px solid #CCCCCC !important;
-    box-shadow: 0 8px 30px rgba(0,0,0,0.06) !important;
+    border-color: #CCCCCC !important;
 }
-/* Text-Styling des Inputs */
+/* Input-Text */
 .stTextInput input {
     font-size: 1.2rem !important;
     padding: 1.2rem 1.5rem !important;
     color: #111111 !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
 }
 div[data-testid="stExpander"] {
     border-radius: 12px;
