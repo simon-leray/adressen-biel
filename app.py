@@ -378,13 +378,26 @@ df = load_data()
 if df is None:
     st.stop()
 
-# Logo (Lottie-Animation)
-col_logo = st.columns([1, 1.5, 1])[1]
+# Logo (Lottie-Animation via lottie-web für exakte Grössenkontrolle)
 if os.path.exists(LOTTIE_FILE):
     with open(LOTTIE_FILE, encoding="utf-8") as f:
         lottie_data = json.load(f)
+    lottie_json_str = json.dumps(lottie_data)
+    col_logo = st.columns([1, 2, 1])[1]
     with col_logo:
-        st_lottie(lottie_data, height=250, loop=True, quality="high", key="logo")
+        st.components.v1.html(f"""
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+        <div id="lottie" style="width:100%; height:140px; display:flex; align-items:center; justify-content:center;"></div>
+        <script>
+          lottie.loadAnimation({{
+            container: document.getElementById('lottie'),
+            renderer: 'svg',
+            loop: true,
+            autoplay: true,
+            animationData: {lottie_json_str}
+          }});
+        </script>
+        """, height=140)
 
 st.markdown("<div class='main-title'>Wie viel Stadt besitzt die Stadt?</div>", unsafe_allow_html=True)
 st.markdown("<div class='title-subtext'>Suchportal für den Immobilienbesitz der Stadt Biel</div>", unsafe_allow_html=True)
