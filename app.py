@@ -69,6 +69,8 @@ st.set_page_config(page_title="Immobilienregister Biel", layout="wide")
 # Session-State initialisieren (immer ganz oben, vor dem ersten Rendering)
 if "results_limit" not in st.session_state:
     st.session_state.results_limit = 20
+if "filter_mode" not in st.session_state:
+    st.session_state.filter_mode = FILTER_OPTIONEN[0]
 
 # ── 3. CSS ───────────────────────────────────────────────────────────────────
 
