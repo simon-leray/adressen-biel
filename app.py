@@ -150,6 +150,15 @@ div[data-testid="stExpander"] {
     /* Mobile: Selectbox-Filter zeigen, Radio-Pills verstecken */
     .stRadio { display: none !important; }
     [data-testid="stSelectbox"] { display: block !important; }
+    /* Columns auf Mobile nie stacken */
+    [data-testid="stHorizontalBlock"] {
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+    }
+    [data-testid="column"] {
+        min-width: 0 !important;
+        flex: 1 1 0% !important;
+    }
 }
 .label-text {
     font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
