@@ -211,8 +211,8 @@ def disclaimer_fragment():
             st.markdown(METHODIK_TEXT)
             if st.button("Verstanden"):
                 st.session_state.disclaimer_shown = True
-                # Kein st.rerun() nötig: Button-Klick triggert automatisch
-                # einen Fragment-Rerun (nicht die ganze Seite)
+                  st.rerun()  # rerunt nur das Fragment, nicht die ganze Seite
+
         _show()
 
 disclaimer_fragment()
