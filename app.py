@@ -71,6 +71,8 @@ if "results_limit" not in st.session_state:
     st.session_state.results_limit = 20
 if "filter_mode" not in st.session_state:
     st.session_state.filter_mode = FILTER_OPTIONEN[0]
+if "prev_search" not in st.session_state:
+    st.session_state.prev_search = ""
 
 # ── 3. CSS ───────────────────────────────────────────────────────────────────
 
@@ -251,9 +253,9 @@ METHODIK_TEXT = """
 
 Die Daten stammen aus dem öffentlichen WebGIS der Stadt Biel (Stand: 26.11.2025). Da die Rohdaten komplex sind, haben wir sie mit einer eigenen Logik neu aufbereitet:
 
-	<strong>1. Besitz-Check:</strong> Wir haben für jede Parzelle automatisiert analysiert, wer involviert ist (z. B. wenn die Stadt den Boden besitzt, aber jemand anderes das Baurecht).
-	<strong>2. Daten-Fusion:</strong> Wir haben die geografischen Pläne der Stadt mit dem Adressregister des Bundes [map.geo.admin.ch](https://map.geo.admin.ch) verknüpft, damit man Grundstücke einfach per Adresse finden kann.
-	<strong>3. Einfachheit:</strong> Bei komplizierten Fällen (wie vielen verschiedenen Eigentümern in einem Haus) haben wir die Darstellung vereinfacht, um die Übersichtlichkeit zu wahren.
+<strong>1. Besitz-Check:</strong> Wir haben für jede Parzelle automatisiert analysiert, wer involviert ist (z. B. wenn die Stadt den Boden besitzt, aber jemand anderes das Baurecht).
+<strong>2. Daten-Fusion:</strong> Wir haben die geografischen Pläne der Stadt mit dem Adressregister des Bundes [map.geo.admin.ch](https://map.geo.admin.ch) verknüpft, damit man Grundstücke einfach per Adresse finden kann.
+<strong>3. Einfachheit:</strong> Bei komplizierten Fällen (wie vielen verschiedenen Eigentümern in einem Haus) haben wir die Darstellung vereinfacht, um die Übersichtlichkeit zu wahren.
 
 Dieses Tool dient ausschliesslich der Orientierung. Es bietet keine verbindliche Auskunft. Bei komplexen Grenz- oder Stockwerkeigentums-Fällen können vereinzelte Ungenauigkeiten auftreten.
 """
@@ -264,6 +266,12 @@ def methodik_als_html(text: str) -> str:
     html = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'<a href="\2" target="_blank">\1</a>', html)
     return html.replace('\n', '<br>')
 
+
+def normalize(s: str) -> str:
+    """Ersetzt Umlaute für umlaut-insensitive Suche (Bozingen → Bözingen)."""
+    return (str(s).lower()
+            .replace('ä', 'a').replace('ö', 'o').replace('ü', 'u')
+            .replace('ae', 'a').replace('oe', 'o').replace('ue', 'u'))
 
 def natural_sort_key(s: str) -> str:
     """Zahlen im String auf 6 Stellen nullen-auffüllen → korrekte Sortierung.
@@ -480,10 +488,8 @@ with t1:
         key="search_input",
     )
 
-    col_btn1, col_btn2, _ = st.columns([1, 1, 3])
-    with col_btn1:
-        st.button("🔍 Suchen", use_container_width=True)
-    with col_btn2:
+    col_btn, _ = st.columns([1, 4])
+    with col_btn:
         st.button("✕ Löschen", on_click=clear_search, use_container_width=True)
 
     # ── Filter: Radio-Pills auf Desktop, Dropdown auf Mobile ─────────────────
@@ -546,15 +552,24 @@ with t1:
     )
 
     search = st.session_state.get("search_input", "")
+
+    # results_limit zurücksetzen wenn sich der Suchtext geändert hat
+    if search != st.session_state.prev_search:
+        st.session_state.results_limit = 20
+        st.session_state.prev_search = search
+
     f_df = df.copy()
     if "Vollbesitz" in f_mode:      f_df = f_df[f_df['Filter_Kategorie'] == "Vollbesitz"]
     elif "Bodenbesitz" in f_mode:   f_df = f_df[f_df['Filter_Kategorie'] == "Bodenbesitz"]
     elif "Gebäudebesitz" in f_mode: f_df = f_df[f_df['Filter_Kategorie'] == "Gebäudebesitz"]
     if search:
-        # \b stellt sicher, dass nur an Wortgrenzen gematcht wird:
-        # "Ring" trifft "Ring 1", "Ringstrasse" – aber nicht "Fallbringen"
-        pattern = r'\b' + re.escape(search)
-        f_df = f_df[f_df['Adresse'].str.contains(pattern, case=False, na=False, regex=True)]
+        # Umlaut-normalisiert und wortgrenzen-basiert suchen:
+        # "Bozingen" findet "Bözingen", "Ring" findet nicht "Fallbringen"
+        norm_search = normalize(search)
+        pattern = r'\b' + re.escape(norm_search)
+        f_df = f_df[f_df['Adresse'].apply(normalize).str.contains(
+            pattern, case=False, na=False, regex=True
+        )]
     f_df = f_df.sort_values('Adresse', key=lambda col: col.map(natural_sort_key))
 
     if f_mode == "Alle Adressen" and not search:
@@ -562,8 +577,11 @@ with t1:
     elif f_df.empty:
         st.info("Keine Treffer.")
     else:
+        total = len(f_df)
+        shown = min(st.session_state.results_limit, total)
         st.markdown(
-            f"<div style='margin-bottom:1rem; opacity:0.6; font-size:0.8rem;'>{len(f_df)} Treffer</div>",
+            f"<div style='margin-bottom:1rem; opacity:0.6; font-size:0.8rem;'>"
+            f"{shown} von {total} Treffer</div>",
             unsafe_allow_html=True,
         )
         for _, r in f_df.iloc[:st.session_state.results_limit].iterrows():
