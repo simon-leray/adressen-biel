@@ -114,6 +114,12 @@ div[data-testid="stExpander"] {
     background-color: #FFFFFF !important;
     border: 1px solid #EAEAEA !important;
 }
+div[data-testid="stExpander"] summary {
+    padding: 1rem 1.25rem !important;
+    min-height: 60px !important;
+    display: flex !important;
+    align-items: center !important;
+}
 [data-testid="stExpanderDetails"] {
     padding-top: 0.5rem !important;
     padding-bottom: 1.25rem !important;
@@ -136,9 +142,14 @@ div[data-testid="stExpander"] {
     margin-top: -0.5rem !important;
     margin-bottom: -1.5rem !important;
 }
-/* Desktop: Selectbox verstecken (nur Radio-Pills sichtbar) */
-[data-testid="stSelectbox"] { display: none !important; }
+/* Desktop: nur Radio-Pills, kein Dropdown */
+@media (min-width: 769px) {
+    [data-testid="stSelectbox"] { display: none !important; }
+}
+/* Mobile: nur Dropdown, keine Radio-Pills */
 @media (max-width: 768px) {
+    [data-testid="stRadio"] { display: none !important; }
+    [data-testid="stSelectbox"] { display: block !important; }
     .main-title {
         font-size: 2rem;
         line-height: 1.1;
@@ -147,9 +158,6 @@ div[data-testid="stExpander"] {
         margin-top: -0.5rem !important;
         margin-bottom: -2.5rem !important;
     }
-    /* Mobile: Radio-Pills verstecken, Selectbox zeigen */
-    [data-testid="stRadio"] { display: none !important; }
-    [data-testid="stSelectbox"] { display: block !important; }
     /* Suchfeld-Buttons nebeneinander */
     [data-testid="column"] {
         width: calc(50% - 8px) !important;
