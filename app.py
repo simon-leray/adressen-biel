@@ -133,8 +133,8 @@ div[data-testid="stExpander"] {
 }
 /* Lottie: Whitespace komprimieren */
 [data-testid="stCustomComponentV1"] {
-    margin-top: -1.5rem !important;
-    margin-bottom: -2rem !important;
+    margin-top: -0.5rem !important;
+    margin-bottom: -0.5rem !important;
 }
 @media (max-width: 768px) {
     .main-title {
@@ -378,26 +378,13 @@ df = load_data()
 if df is None:
     st.stop()
 
-# Logo (Lottie-Animation via lottie-web für exakte Grössenkontrolle)
+# Logo (Lottie-Animation)
 if os.path.exists(LOTTIE_FILE):
     with open(LOTTIE_FILE, encoding="utf-8") as f:
         lottie_data = json.load(f)
-    lottie_json_str = json.dumps(lottie_data)
-    col_logo = st.columns([1, 2, 1])[1]
+    col_logo = st.columns([1, 1, 1])[1]
     with col_logo:
-        st.components.v1.html(f"""
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
-        <div id="lottie" style="width:100%; height:280px; display:flex; align-items:center; justify-content:center;"></div>
-        <script>
-          lottie.loadAnimation({{
-            container: document.getElementById('lottie'),
-            renderer: 'svg',
-            loop: true,
-            autoplay: true,
-            animationData: {lottie_json_str}
-          }});
-        </script>
-        """, height=280)
+        st_lottie(lottie_data, height=100, loop=True, quality="high", key="logo")
 
 st.markdown("<div class='main-title'>Wie viel Stadt besitzt die Stadt?</div>", unsafe_allow_html=True)
 st.markdown("<div class='title-subtext'>Suchportal für den Immobilienbesitz der Stadt Biel</div>", unsafe_allow_html=True)
