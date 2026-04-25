@@ -69,6 +69,8 @@ st.set_page_config(page_title="Immobilienregister Biel", layout="wide")
 # Session-State initialisieren (immer ganz oben, vor dem ersten Rendering)
 if "results_limit" not in st.session_state:
     st.session_state.results_limit = 20
+if "filter_mode" not in st.session_state:
+    st.session_state.filter_mode = FILTER_OPTIONEN[0]
 
 # ── 3. CSS ───────────────────────────────────────────────────────────────────
 
@@ -145,12 +147,9 @@ div[data-testid="stExpander"] {
         margin-top: -0.5rem !important;
         margin-bottom: -2.5rem !important;
     }
-    /* Zwingt die Spalten (Buttons) auf Mobile nebeneinander */
-    [data-testid="column"] {
-        width: calc(50% - 8px) !important;
-        flex: 1 1 calc(50% - 8px) !important;
-        min-width: 0 !important;
-    }
+    /* Mobile: Selectbox-Filter zeigen, Radio-Pills verstecken */
+    .stRadio { display: none !important; }
+    [data-testid="stSelectbox"] { display: block !important; }
 }
 .label-text {
     font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
@@ -205,6 +204,8 @@ div[role="radiogroup"] > label:has(input:checked) p { color: #FFFFFF !important;
     font-size: 0.85rem; color: #0066CC;
     text-decoration: none; font-weight: 500;
 }
+/* Desktop: Selectbox-Filter verstecken (nur Radio-Pills sichtbar) */
+[data-testid="stSelectbox"] { display: none; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -393,7 +394,8 @@ if os.path.exists(LOTTIE_FILE):
 st.markdown("<div class='main-title'>Wie viel Stadt besitzt die Stadt?</div>", unsafe_allow_html=True)
 st.markdown("<div class='title-subtext'>Suchportal für den Immobilienbesitz der Stadt Biel</div>", unsafe_allow_html=True)
 
-t1, t2 = st.tabs(["🔍 Suche & Recherche", "Interaktive Karte"])
+# Tab umbenannt in "Suche"
+t1, t2 = st.tabs(["🔍 Suche", "Interaktive Karte"])
 
 # ── Tab 1: Suche ─────────────────────────────────────────────────────────────
 with t1:
@@ -407,16 +409,39 @@ with t1:
     def clear_search():
         st.session_state.search_input = ""
 
+    # Buttons: zwei gleich breite Spalten → nebeneinander auf Desktop & Mobile
     col_btn1, col_btn2, _ = st.columns([1, 1, 3])
     with col_btn1:
         st.button("🔍 Suchen", use_container_width=True)
     with col_btn2:
         st.button("✕ Löschen", on_click=clear_search, use_container_width=True)
-    f_mode = st.radio("Filter", FILTER_OPTIONEN, horizontal=True, label_visibility="collapsed")
 
+    # Filter: Desktop = Radio-Pills, Mobile = Selectbox (CSS show/hide)
+    cur_idx = next(
+        (i for i, o in enumerate(FILTER_OPTIONEN) if o == st.session_state.filter_mode), 0
+    )
+
+    def _sync_radio():
+        st.session_state.filter_mode = st.session_state._f_radio
+
+    def _sync_select():
+        st.session_state.filter_mode = st.session_state._f_select
+
+    # Desktop-Filter (Radio-Pills)
+    st.radio(
+        "Filter", FILTER_OPTIONEN, index=cur_idx, horizontal=True,
+        label_visibility="collapsed", key="_f_radio", on_change=_sync_radio,
+    )
+    # Mobile-Filter (Selectbox – per CSS auf Desktop versteckt)
+    st.selectbox(
+        "Filter", FILTER_OPTIONEN, index=cur_idx,
+        label_visibility="collapsed", key="_f_select", on_change=_sync_select,
+    )
+
+    f_mode = st.session_state.filter_mode
     hinweis_key = next((k for k in FILTER_HINWEISE if k in f_mode), "Alle Adressen")
     st.markdown(
-        f"<p style='color:#888888; font-size:0.85rem; margin-top:-10px; margin-bottom:20px;'>"
+        f"<p style='color:#888888; font-size:0.85rem; margin-top:-6px; margin-bottom:20px;'>"
         f"{FILTER_HINWEISE[hinweis_key]}</p>",
         unsafe_allow_html=True,
     )
