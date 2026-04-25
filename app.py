@@ -69,8 +69,6 @@ st.set_page_config(page_title="Immobilienregister Biel", layout="wide")
 # Session-State initialisieren (immer ganz oben, vor dem ersten Rendering)
 if "results_limit" not in st.session_state:
     st.session_state.results_limit = 20
-if "filter_mode" not in st.session_state:
-    st.session_state.filter_mode = FILTER_OPTIONEN[0]
 
 # ── 3. CSS ───────────────────────────────────────────────────────────────────
 
@@ -147,21 +145,11 @@ div[data-testid="stExpander"] {
         margin-top: -0.5rem !important;
         margin-bottom: -2.5rem !important;
     }
-    /* Mobile: Selectbox-Filter zeigen, Radio-Pills verstecken */
-    .stRadio { display: none !important; }
-    [data-testid="stSelectbox"] { display: block !important; }
-    /* Button-Reihen: kompakt nebeneinander */
-    [data-testid="stHorizontalBlock"]:has(button) {
-        flex-direction: row !important;
-        flex-wrap: nowrap !important;
-        gap: 8px !important;
-        justify-content: flex-start !important;
-    }
-    [data-testid="stHorizontalBlock"]:has(button) > [data-testid="column"] {
-        flex: 0 0 auto !important;
+    /* Zwingt die Spalten (Buttons) auf Mobile nebeneinander */
+    [data-testid="column"] {
+        width: calc(50% - 8px) !important;
+        flex: 1 1 calc(50% - 8px) !important;
         min-width: 0 !important;
-        width: auto !important;
-        margin: 0 !important;
     }
 }
 .label-text {
@@ -217,8 +205,6 @@ div[role="radiogroup"] > label:has(input:checked) p { color: #FFFFFF !important;
     font-size: 0.85rem; color: #0066CC;
     text-decoration: none; font-weight: 500;
 }
-/* Desktop: Selectbox-Filter verstecken (nur Radio-Pills sichtbar) */
-[data-testid="stSelectbox"] { display: none; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -407,13 +393,10 @@ if os.path.exists(LOTTIE_FILE):
 st.markdown("<div class='main-title'>Wie viel Stadt besitzt die Stadt?</div>", unsafe_allow_html=True)
 st.markdown("<div class='title-subtext'>Suchportal für den Immobilienbesitz der Stadt Biel</div>", unsafe_allow_html=True)
 
-# Tab umbenannt in "Suche"
-t1, t2 = st.tabs(["🔍 Suche", "Interaktive Karte"])
+t1, t2 = st.tabs(["🔍 Suche & Recherche", "Interaktive Karte"])
 
 # ── Tab 1: Suche ─────────────────────────────────────────────────────────────
 with t1:
-
-    # ── Suchfeld ──────────────────────────────────────────────────────────────
     search = st.text_input(
         "Suche",
         placeholder="Strasse und Hausnummer",
@@ -424,44 +407,20 @@ with t1:
     def clear_search():
         st.session_state.search_input = ""
 
-    # Buttons ohne use_container_width → natürliche Grösse.
-    # CSS :has(button) erzwingt auf Mobile eine horizontale Reihe.
-    col_btn1, col_btn2 = st.columns(2)
+    col_btn1, col_btn2, _ = st.columns([1, 1, 3])
     with col_btn1:
-        st.button("🔍 Suchen")
+        st.button("🔍 Suchen", use_container_width=True)
     with col_btn2:
-        st.button("✕ Löschen", on_click=clear_search)
+        st.button("✕ Löschen", on_click=clear_search, use_container_width=True)
+    f_mode = st.radio("Filter", FILTER_OPTIONEN, horizontal=True, label_visibility="collapsed")
 
-    # ── Filter ─────────────────────────────────────────────────────────────────
-    # Desktop: Radio-Pills  |  Mobile: Selectbox (CSS show/hide)
-    cur_idx = next(
-        (i for i, o in enumerate(FILTER_OPTIONEN) if o == st.session_state.filter_mode), 0
-    )
-
-    def _sync_radio():
-        st.session_state.filter_mode = st.session_state._f_radio
-
-    def _sync_select():
-        st.session_state.filter_mode = st.session_state._f_select
-
-    st.radio(
-        "Filter", FILTER_OPTIONEN, index=cur_idx, horizontal=True,
-        label_visibility="collapsed", key="_f_radio", on_change=_sync_radio,
-    )
-    st.selectbox(
-        "Filter", FILTER_OPTIONEN, index=cur_idx,
-        label_visibility="collapsed", key="_f_select", on_change=_sync_select,
-    )
-
-    f_mode = st.session_state.filter_mode
     hinweis_key = next((k for k in FILTER_HINWEISE if k in f_mode), "Alle Adressen")
     st.markdown(
-        f"<p style='color:#888888;font-size:0.85rem;margin-top:-6px;margin-bottom:20px;'>"
+        f"<p style='color:#888888; font-size:0.85rem; margin-top:-10px; margin-bottom:20px;'>"
         f"{FILTER_HINWEISE[hinweis_key]}</p>",
         unsafe_allow_html=True,
     )
 
-    # ── Ergebnisse ─────────────────────────────────────────────────────────────
     search = st.session_state.get("search_input", "")
     f_df = df.copy()
     if "Vollbesitz" in f_mode:      f_df = f_df[f_df['Filter_Kategorie'] == "Vollbesitz"]
@@ -476,7 +435,7 @@ with t1:
         st.info("Keine Treffer.")
     else:
         st.markdown(
-            f"<div style='margin-bottom:1rem;opacity:0.6;font-size:0.8rem;'>{len(f_df)} Treffer</div>",
+            f"<div style='margin-bottom:1rem; opacity:0.6; font-size:0.8rem;'>{len(f_df)} Treffer</div>",
             unsafe_allow_html=True,
         )
         for _, r in f_df.iloc[:st.session_state.results_limit].iterrows():
@@ -492,24 +451,11 @@ with t1:
                     unsafe_allow_html=True,
                 )
                 st.write("---")
-                # Parzelle / Eigentum / Fläche als HTML-Tabelle:
-                # immer 3 Spalten, nie durch Streamlit-Column-Stacking beeinflusst
+                c1, c2, c3 = st.columns(3)
                 eigentuem_clean = re.sub(r'\d{2}:\s*', '', str(r['Eigentumsverhältnis']))
-                st.markdown(f"""
-<div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:0.5rem;">
-  <div style="flex:1;min-width:80px;">
-    <div class='label-text'>Parzelle</div>
-    <div>{r['Grundstücksnummer(n)']}</div>
-  </div>
-  <div style="flex:2;min-width:120px;">
-    <div class='label-text'>Eigentum</div>
-    <div>{eigentuem_clean}</div>
-  </div>
-  <div style="flex:1;min-width:80px;">
-    <div class='label-text'>Fläche</div>
-    <div>{r['Fläche(n)']}</div>
-  </div>
-</div>""", unsafe_allow_html=True)
+                c1.markdown(f"<div class='label-text'>Parzelle</div>{r['Grundstücksnummer(n)']}", unsafe_allow_html=True)
+                c2.markdown(f"<div class='label-text'>Eigentum</div>{eigentuem_clean}", unsafe_allow_html=True)
+                c3.markdown(f"<div class='label-text'>Fläche</div>{r['Fläche(n)']}", unsafe_allow_html=True)
 
         if len(f_df) > st.session_state.results_limit:
             if st.button("Weitere laden"):
