@@ -427,8 +427,57 @@ with t1:
         st.button("🔍 Suchen", use_container_width=True)
     with col_btn2:
         st.button("✕ Löschen", on_click=clear_search, use_container_width=True)
-    f_mode = st.radio("Filter", FILTER_OPTIONEN, horizontal=True, label_visibility="collapsed")
 
+    # ── Filter: Radio-Pills auf Desktop, Dropdown auf Mobile ─────────────────
+    cur_idx = next(
+        (i for i, o in enumerate(FILTER_OPTIONEN) if o == st.session_state.filter_mode), 0
+    )
+
+    def _sync_radio():
+        st.session_state.filter_mode = st.session_state._f_radio
+
+    def _sync_select():
+        st.session_state.filter_mode = st.session_state._f_select
+
+    st.radio(
+        "Filter", FILTER_OPTIONEN, index=cur_idx, horizontal=True,
+        label_visibility="collapsed", key="_f_radio", on_change=_sync_radio,
+    )
+    st.selectbox(
+        "Filter", FILTER_OPTIONEN, index=cur_idx,
+        label_visibility="collapsed", key="_f_select", on_change=_sync_select,
+    )
+
+    # JavaScript: Selectbox/Radio per Viewport-Breite ein-/ausblenden
+    # (robuster als CSS-Media-Queries in Streamlit)
+    st.components.v1.html("""
+    <script>
+    (function() {
+        function apply() {
+            try {
+                var w = window.parent.innerWidth;
+                var isMobile = w < 769;
+                var doc = window.parent.document;
+                doc.querySelectorAll('[data-testid="stRadio"]').forEach(function(el) {
+                    el.style.setProperty('display', isMobile ? 'none' : 'block', 'important');
+                });
+                doc.querySelectorAll('[data-testid="stSelectbox"]').forEach(function(el) {
+                    el.style.setProperty('display', isMobile ? 'block' : 'none', 'important');
+                });
+            } catch(e) {}
+        }
+        apply();
+        [100, 300, 700, 1500].forEach(function(t) { setTimeout(apply, t); });
+        window.parent.addEventListener('resize', apply);
+        try {
+            new MutationObserver(function() { setTimeout(apply, 60); })
+                .observe(window.parent.document.body, { childList: true, subtree: true });
+        } catch(e) {}
+    })();
+    </script>
+    """, height=0)
+
+    f_mode = st.session_state.filter_mode
     hinweis_key = next((k for k in FILTER_HINWEISE if k in f_mode), "Alle Adressen")
     st.markdown(
         f"<p style='color:#888888; font-size:0.85rem; margin-top:-10px; margin-bottom:20px;'>"
