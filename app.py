@@ -110,6 +110,11 @@ st.markdown("""
 .stTextInput > div > div:focus-within {
     border-color: #CCCCCC !important;
 }
+/* Text-Cursor beim Hovern */
+.stTextInput > div > div,
+.stTextInput input {
+    cursor: text !important;
+}
 /* Input-Text */
 .stTextInput input {
     font-size: 1.2rem !important;
@@ -156,7 +161,10 @@ div[data-testid="stExpander"] {
 }
 .label-text {
     font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
-    letter-spacing: 0.08em; color: #86868B !important; margin-bottom: 0.5rem;
+    letter-spacing: 0.08em; color: #86868B !important;
+    margin-bottom: 0.15rem;
+    margin-top: 0;
+    display: block;
 }
 .methodology-box {
     margin-top: 4rem; padding: 2rem; border-radius: 12px;
