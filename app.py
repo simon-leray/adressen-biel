@@ -127,6 +127,16 @@ div[data-testid="stMetricValue"] {
     margin-bottom: 1.2rem;
     color: #111111 !important;
 }
+
+.methodology-box {
+    margin-top: 4rem;
+    padding: 2rem;
+    border-radius: 12px;
+    background-color: #F2F2F7;
+    font-size: 0.9rem;
+    color: #555555;
+    line-height: 1.5;
+}
 </style>
 """
 
@@ -162,6 +172,10 @@ div[data-testid="stExpander"] span {
 .stTabs [aria-selected="true"] {
     color: #F5F5F7 !important;
     border-bottom-color: #F5F5F7 !important;
+}
+.methodology-box {
+    background-color: #1C1C1E;
+    color: #A1A1A6;
 }
 hr { border-top-color: #333336 !important; }
 </style>
@@ -208,7 +222,6 @@ def generiere_besitz_text(besitz_string, nummern_string):
         elif "Baurecht" in info: bau_besitzer.append(b)
         else: boden_besitzer.append(b)
 
-    # 1. QUELLENRECHT
     if quelle_besitzer:
         wer_quelle = name_nominativ(quelle_besitzer[0])
         if boden_besitzer:
@@ -216,7 +229,6 @@ def generiere_besitz_text(besitz_string, nummern_string):
             return f"<strong>QUELLENRECHT</strong><br><br>Der Grund und Boden dieser Parzelle gehört <strong>{wer_boden}</strong>. Jedoch besitzt <strong>{wer_quelle}</strong> hier ein Quellenrecht. Diese Partei darf auf diesem fremden Grundstück eine Wasserquelle fassen und nutzen."
         return f"<strong>QUELLENRECHT</strong><br><br>Sowohl der Boden als auch das Recht zur Wassernutzung gehören <strong>{name_dativ(quelle_besitzer[0])}</strong>."
 
-    # 2. BAURECHT
     if bau_besitzer:
         txt_boden = " sowie ".join(list(dict.fromkeys([name_dativ(b) for b in boden_besitzer])))
         txt_bau_nom = " sowie ".join(list(dict.fromkeys([name_nominativ(b) for b in bau_besitzer])))
@@ -226,12 +238,10 @@ def generiere_besitz_text(besitz_string, nummern_string):
             return f"<strong>BAURECHT</strong><br><br>Sowohl der Grund und Boden als auch das Gebäude gehören <strong>{txt_boden}</strong>. Rechtlich gesehen sind dies jedoch zwei getrennte Grundstücke, die unabhängig voneinander behandelt werden."
         return f"<strong>BAURECHT</strong><br><br>Der Grund und Boden gehört <strong>{txt_boden}</strong>. Jedoch besitzt <strong>{txt_bau_nom}</strong> hier ein Baurecht. Das Gebäude gehört rechtlich <strong>{txt_bau_dat}</strong>, obwohl der Boden <strong>{txt_boden}</strong> gehört."
 
-    # 3. GRENZFALL
     if len(boden_besitzer) > 1:
         txt_boden = " sowie ".join(list(dict.fromkeys([name_dativ(b) for b in boden_besitzer])))
         return f"<strong>GRENZFALL</strong><br><br>Dieses Gebäude steht auf mehreren Grundstücken gleichzeitig. Der gesamte Boden gehört <strong>{txt_boden}</strong>."
 
-    # 4. NORMALFALL
     return f"<strong>VOLLEIGENTUM</strong><br><br>Sowohl der Boden als auch das Gebäude gehören vollumfänglich <strong>{name_dativ(boden_besitzer[0])}</strong>."
 
 try:
@@ -289,6 +299,17 @@ try:
         stadt_besitz_sort['Fläche_Zahl'] = stadt_besitz_sort['Fläche(n)'].str.extract(r'(\d+)').astype(float)
         top_10 = stadt_besitz_sort.sort_values(by='Fläche_Zahl', ascending=False).head(10)
         st.dataframe(top_10[['Adresse', 'Fläche(n)', 'Grundstücksnummer(n)']], use_container_width=True, hide_index=True)
+
+    # --- METHODIK INFOBOX ---
+    st.markdown(f"""
+    <div class='methodology-box'>
+        <strong>Methodik & Datenquellen</strong><br>
+        Diese Anwendung basiert auf den öffentlichen Geodaten des WebGIS der Stadt Biel (Stand der letzten Aktualisierung: 26.11.2025). 
+        Um eine höchstmögliche Genauigkeit zu gewährleisten, wurden die Eigentumskategorien mit den amtlichen Daten des Bundes-Kartenportals 
+        (map.geo.admin.ch) abgeglichen und verifiziert. Die Zuordnung erfolgt über die amtlichen Grundstücksnummern. 
+        Bitte beachten Sie, dass dies kein amtliches Grundbuchdokument ersetzt.
+    </div>
+    """, unsafe_allow_html=True)
 
 except Exception as e:
     st.markdown(f"<p class='title-subtext'>Ein Fehler ist aufgetreten: {e}</p>", unsafe_allow_html=True)
