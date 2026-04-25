@@ -145,6 +145,12 @@ div[data-testid="stExpander"] {
         margin-top: -0.5rem !important;
         margin-bottom: -2.5rem !important;
     }
+    /* Zwingt die Spalten (Buttons) auf Mobile nebeneinander */
+    [data-testid="column"] {
+        width: calc(50% - 8px) !important;
+        flex: 1 1 calc(50% - 8px) !important;
+        min-width: 0 !important;
+    }
 }
 .label-text {
     font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
