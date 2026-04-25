@@ -442,7 +442,7 @@ if lottie_data:
 st.markdown("<div class='main-title'>Wie viel Stadt besitzt die Stadt?</div>", unsafe_allow_html=True)
 st.markdown("<div class='title-subtext'>Suchportal für den Immobilienbesitz der Stadt Biel</div>", unsafe_allow_html=True)
 
-t1, t2 = st.tabs(["🔍 Suche", "Interaktive Karte"])
+t1, t2, t3 = st.tabs(["🔍 Suche", "Interaktive Karte", "ℹ️ Methodik"])
 
 # ── Tab 1: Suche ─────────────────────────────────────────────────────────────
 
@@ -618,8 +618,9 @@ def render_karte():
 with t2:
     render_karte()
 
-# ── 8. FOOTER ────────────────────────────────────────────────────────────────
-st.markdown(
-    f"<div class='methodology-box'>{methodik_als_html(METHODIK_TEXT)}</div>",
-    unsafe_allow_html=True,
-)
+# ── Tab 3: Methodik ───────────────────────────────────────────────────────────
+with t3:
+    st.markdown(
+        f"<div class='methodology-box'>{methodik_als_html(METHODIK_TEXT)}</div>",
+        unsafe_allow_html=True,
+    )
