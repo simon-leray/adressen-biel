@@ -52,17 +52,16 @@ div[role="radiogroup"] > label:has(input:checked) p { color: #FFFFFF !important;
 # --- 3. HELFER-FUNKTIONEN ---
 
 def format_methodology(text):
-    """Konvertiert Markdown-Bold sauber zu HTML."""
+    """Konvertiert Markdown-Bold sauber zu HTML (Fix von Claude)."""
     text = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', text)
     return text.replace('\n', '<br>')
 
 def get_owner_text(raw_text, case_index):
-    """Extrahiert Eigentümer-Beschreibungen aus dem EIGENTUEMER_MAP."""
+    """Nutzt Map für korrekte Bezeichnungen (Fix von Claude)."""
     code = next((k for k in EIGENTUEMER_MAP if k in str(raw_text)), None)
     return EIGENTUEMER_MAP[code][case_index] if code else ("einem unbekannten Eigentümer" if case_index == 0 else "ein unbekannter Eigentümer")
 
 def lv95_to_wgs84(y, x):
-    """Schweizer Koordinaten zu GPS."""
     y_p, x_p = (y - 2600000) / 1000000, (x - 1200000) / 1000000
     lon = 2.6779094 + 4.728982 * y_p + 0.791484 * y_p * x_p + 0.1306 * y_p * x_p**2 - 0.0436 * y_p**3
     lat = 16.9023892 + 3.238272 * x_p - 0.270978 * y_p**2 - 0.002528 * x_p**2 - 0.0447 * y_p**2 * x_p - 0.0140 * x_p**3
@@ -72,14 +71,10 @@ def recursive_convert(coords):
     if isinstance(coords[0], (int, float)): return lv95_to_wgs84(coords[0], coords[1])
     return [recursive_convert(c) for c in coords]
 
-# --- 4. DATEN-LADEN ---
-
 @st.cache_data
 def load_data():
     if not os.path.exists(EXCEL_FILE): return None
     df = pd.read_excel(EXCEL_FILE, sheet_name='Adress-Verzeichnis').fillna("")
-    
-    # Fix 1: Korrekter Series Extrakt für Fläche
     extracted = df['Fläche(n)'].str.extract(r'(\d+)')
     df['Fläche_Zahl'] = extracted[0].astype(float).fillna(0) if not extracted.empty else 0
     
@@ -96,7 +91,6 @@ def load_data():
         if not s_boden and s_bau: return "Gebäudebesitz"
         if s_boden and s_bau: return "Bodenbesitz" if any("01" not in b for b in bau) else "Vollbesitz"
         return "Andere"
-    
     df['Filter_Kategorie'] = df.apply(bestimme_kategorie, axis=1)
     return df
 
@@ -106,33 +100,25 @@ def load_geojson_data(df):
     try:
         with open(GEOJSON_FILE, 'r', encoding='utf-8') as f:
             data = json.load(f)
-        
         features = []
-        if data.get("type") == "FeatureCollection":
-            features = data.get("features", [])
+        if data.get("type") == "FeatureCollection": features = data.get("features", [])
         else:
             for val in data.values():
-                if isinstance(val, dict) and val.get("type") == "FeatureCollection":
-                    features.extend(val.get("features", []))
-
+                if isinstance(val, dict) and val.get("type") == "FeatureCollection": features.extend(val.get("features", []))
         mapping = {}
         for _, row in df.iterrows():
             clean_nums = re.findall(r'\d+', str(row['Grundstücksnummer(n)']))
             for n in clean_nums: mapping[str(n)] = row['Filter_Kategorie']
-
         for f in features:
             f['geometry']['coordinates'] = recursive_convert(f['geometry']['coordinates'])
             gn = str(f["properties"].get("grst_nummer", "")).strip()
             kat = mapping.get(gn, "Vollbesitz" if str(f["properties"].get("eigentuemer_gr", "")) == "01" else "Andere")
-            
-            # Farben & Namen
             if kat == "Vollbesitz": f["properties"].update({"lc": [0,122,255,255], "fc": [0,122,255,60], "kn": "Vollbesitz Stadt"})
             elif kat == "Bodenbesitz": f["properties"].update({"lc": [90,200,250,255], "fc": [90,200,250,60], "kn": "Bodenbesitz Stadt"})
             elif kat == "Gebäudebesitz": f["properties"].update({"lc": [255,179,64,255], "fc": [255,179,64,60], "kn": "Gebäudebesitz Stadt"})
             else: f["properties"].update({"lc": [255,149,0,255], "fc": [255,149,0,60], "kn": "Privat / Andere"})
         return features
-    except (json.JSONDecodeError, KeyError, FileNotFoundError):
-        return None
+    except: return None
 
 def build_info_text(besitz_str, nummern_str):
     if not besitz_str: return "Keine Daten."
@@ -143,7 +129,6 @@ def build_info_text(besitz_str, nummern_str):
         if "Quellenrecht" in info: quelle.append(b)
         elif "Baurecht" in info: bau.append(b)
         else: boden.append(b)
-    
     if quelle:
         return f"<strong>QUELLENRECHT</strong><br><br>Der Boden gehört <strong>{get_owner_text(boden[0], 0)}</strong>. Jedoch besitzt <strong>{get_owner_text(quelle[0], 1)}</strong> hier ein Quellenrecht."
     if bau:
@@ -155,15 +140,20 @@ def build_info_text(besitz_str, nummern_str):
     if len(boden) > 1: return f"<strong>GRENZFALL / MITBESITZ</strong><br><br>Dieses Objekt gehört <strong>{' sowie '.join(list(dict.fromkeys([get_owner_text(b, 0) for b in boden])))}</strong> gemeinsam."
     return f"<strong>VOLLEIGENTUM</strong><br><br>Grund und Gebäude gehören vollumfänglich <strong>{get_owner_text(boden[0], 0)}</strong>."
 
-# --- 5. APP RENDERING ---
-
+# --- 4. METHODIK TEXT ---
 methodik_raw = """
 **Methodik & Datenquellen:**
-Die diesem Tool zugrundeliegenden Daten basieren auf den öffentlich zugänglichen Geodaten des WebGIS der Stadt Biel (Stand: 26.11.2025). Die Kategorisierung der Eigentumsverhältnisse erfolgt anhand der städtischen Codierungs-Struktur.
-Die Adressen wurden ergänzend mit offiziellen Datensätzen via [map.geo.admin.ch](https://map.geo.admin.ch) abgeglichen.
-Dieses Tool dient ausschliesslich der Orientierung. Es bietet keine verbindliche Auskunft.
+
+Die diesem Tool zugrundeliegenden Daten basieren auf den öffentlich zugänglichen Geodaten des WebGIS der Stadt Biel (Stand: 26.11.2025). Die Kategorisierung der Eigentumsverhältnisse (Aufschlüsselung nach Stadt, öffentliche Institutionen und Privaten) erfolgt anhand der städtischen Codierungs-Struktur.
+
+Die physischen Adressen und Grundstücksnummern wurden ergänzend mit den offiziellen Datensätzen des Bundes via [map.geo.admin.ch](https://map.geo.admin.ch) abgeglichen, um eine möglichst hohe geografische Präzision zu gewährleisten.
+
+Dieses Tool dient ausschliesslich der Orientierung. Es bietet keine verbindliche Auskunft. Bei komplexen Grenz- oder Stockwerkeigentums-Fällen können vereinfachte Darstellungen auftreten.
 """
 
+# --- 5. APP RENDERING ---
+
+# Popup-Logik (Optimiert für Speed)
 if 'disclaimer_shown' not in st.session_state:
     @st.dialog("Wichtiger Hinweis")
     def show_disclaimer():
@@ -182,7 +172,7 @@ if df is not None:
     t1, t2 = st.tabs(["🔍 Suche & Recherche", "🗺️ Interaktive Karte"])
     
     with t1:
-        search = st.text_input("Suche", placeholder="Strasse und Hausnummer...", label_visibility="collapsed")
+        search = st.text_input("Suche", placeholder="Strasse und Hausnummer...", key="main_search", label_visibility="collapsed")
         f_mode = st.radio("Filter", ["Alle Adressen", "Vollbesitz der Stadt (Gebäude und Land)", "Bodenbesitz der Stadt (Land im Baurecht abgegeben)", "Gebäudebesitz der Stadt (Land im Baurecht erhalten)"], horizontal=True, label_visibility="collapsed")
         
         # Filter-Beschreibungen
@@ -192,13 +182,14 @@ if df is not None:
         elif "Gebäudebesitz" in f_mode: desc = "💡 Der Boden gehört jemand anderem, aber die Stadt besitzt das Gebäude im Baurecht."
         if desc: st.markdown(f"<p style='color:#888888; font-size:0.85rem; margin-top:-10px; margin-bottom:20px;'>{desc}</p>", unsafe_allow_html=True)
 
-        f_df = df.copy()
-        if "Vollbesitz" in f_mode: f_df = f_df[f_df['Filter_Kategorie'] == "Vollbesitz"]
-        elif "Bodenbesitz" in f_mode: f_df = f_df[f_df['Filter_Kategorie'] == "Bodenbesitz"]
-        elif "Gebäudebesitz" in f_mode: f_df = f_df[f_df['Filter_Kategorie'] == "Gebäudebesitz"]
-        if search: f_df = f_df[f_df['Adresse'].str.contains(search, case=False, na=False)]
-        
         if not (f_mode == "Alle Adressen" and search == ""):
+            # Schnelle Filterung
+            f_df = df
+            if "Vollbesitz" in f_mode: f_df = f_df[f_df['Filter_Kategorie'] == "Vollbesitz"]
+            elif "Bodenbesitz" in f_mode: f_df = f_df[f_df['Filter_Kategorie'] == "Bodenbesitz"]
+            elif "Gebäudebesitz" in f_mode: f_df = f_df[f_df['Filter_Kategorie'] == "Gebäudebesitz"]
+            if search: f_df = f_df[f_df['Adresse'].str.contains(search, case=False, na=False)]
+            
             if not f_df.empty:
                 st.markdown(f"<div style='margin-bottom:1rem; opacity:0.6; font-size:0.8rem;'>{len(f_df)} Treffer</div>", unsafe_allow_html=True)
                 for _, r in f_df.iloc[:st.session_state.results_limit].iterrows():
@@ -222,10 +213,6 @@ if df is not None:
         st.markdown("<div class='legend-box'><div class='legend-item'><div class='legend-color' style='background-color:rgba(0,122,255,0.3);'></div> Vollbesitz (Stadt)</div><div class='legend-item'><div class='legend-color' style='background-color:rgba(90,200,250,0.3);'></div> Bodenbesitz (Baurecht abg.)</div><div class='legend-item'><div class='legend-color' style='background-color:rgba(255,149,0,0.3);'></div> Privat / Andere</div><div class='legend-item'><div class='legend-color' style='background-color:rgba(255,179,64,0.3);'></div> Gebäudebesitz (Baurecht erh.)</div></div>", unsafe_allow_html=True)
         geo = load_geojson_data(df)
         if geo:
-            layer = pdk.Layer("GeoJsonLayer", data={"type": "FeatureCollection", "features": geo}, opacity=1.0, stroked=True, filled=True, get_fill_color="properties.fc", get_line_color="properties.lc", line_width_min_pixels=2, pickable=True)
-            st.pydeck_chart(pdk.Deck(map_provider="carto", map_style="light", initial_view_state=pdk.ViewState(latitude=47.1368, longitude=7.2468, zoom=14.0), layers=[layer], tooltip={"html": "<b>Parzelle:</b> {grst_nummer}<br/><b>Kategorie:</b> {kn}", "style": {"backgroundColor": "steelblue", "color": "white"}}))
-        else: st.warning("Fehler beim Laden der Karte.")
+            st.pydeck_chart(pdk.Deck(map_provider="carto", map_style="light", initial_view_state=pdk.ViewState(latitude=47.1368, longitude=7.2468, zoom=14.0), layers=[pdk.Layer("GeoJsonLayer", data={"type": "FeatureCollection", "features": geo}, opacity=1.0, stroked=True, filled=True, get_fill_color="properties.fc", get_line_color="properties.lc", line_width_min_pixels=2, pickable=True)], tooltip={"html": "<b>Parzelle:</b> {grst_nummer}<br/><b>Kategorie:</b> {kn}", "style": {"backgroundColor": "steelblue", "color": "white"}}))
 
     st.markdown(f"<div class='methodology-box'>{format_methodology(methodik_raw)}</div>", unsafe_allow_html=True)
-else:
-    st.error(f"Datei {EXCEL_FILE} nicht gefunden.")
