@@ -70,6 +70,8 @@ if "disclaimer_shown" not in st.session_state:
     st.session_state.disclaimer_shown = False
 if "results_limit" not in st.session_state:
     st.session_state.results_limit = 20
+if "map_rendered" not in st.session_state:
+    st.session_state.map_rendered = False
 
 # ── 3. CSS ───────────────────────────────────────────────────────────────────
 
@@ -88,6 +90,11 @@ st.markdown("""
     padding-bottom: 4rem;
     max-width: 900px;
 }
+.stTextInput,
+.stTextInput > div,
+.stTextInput > div > div {
+    overflow: visible !important;
+}
 .stTextInput > div > div > input {
     border-radius: 12px;
     padding: 1.2rem 1.5rem;
@@ -95,7 +102,8 @@ st.markdown("""
     background-color: #FFFFFF !important;
     border: 1px solid #EAEAEA !important;
     color: #111111 !important;
-    box-shadow: 0 8px 30px rgba(0,0,0,0.04);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.06);
+    margin-bottom: 8px;
 }
 div[data-testid="stExpander"] {
     border-radius: 12px;
@@ -125,10 +133,12 @@ div[data-testid="stExpander"] {
 }
 .stRadio [data-testid="stWidgetLabel"] { display: none; }
 div[role="radiogroup"] {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
     gap: 8px !important;
     margin-top: 0.5rem;
     margin-bottom: 1.5rem;
-    flex-wrap: wrap;
 }
 div[role="radiogroup"] > label {
     background-color: #FFFFFF !important;
@@ -229,9 +239,9 @@ def bestimme_kategorie(row) -> str:
             boden.append(b)
     stadt_boden = any("01" in b for b in boden)
     stadt_bau   = any("01" in b for b in bau)
-    if stadt_boden and not bau:              return "Vollbesitz"
+    if stadt_boden and not bau:               return "Vollbesitz"
     if stadt_boden and bau and not stadt_bau: return "Bodenbesitz"
-    if not stadt_boden and stadt_bau:        return "Gebäudebesitz"
+    if not stadt_boden and stadt_bau:         return "Gebäudebesitz"
     if stadt_boden and stadt_bau:
         return "Bodenbesitz" if any("01" not in b for b in bau) else "Vollbesitz"
     return "Andere"
@@ -249,7 +259,7 @@ def generiere_besitz_text(besitz_string: str, nummern_string: str) -> str:
         elif "Baurecht" in info:   bau.append(b)
         else:                      boden.append(b)
 
-    def unique_d(items): return " sowie ".join(dict.fromkeys(eigentuemer_dativ(b)   for b in items))
+    def unique_d(items): return " sowie ".join(dict.fromkeys(eigentuemer_dativ(b)    for b in items))
     def unique_n(items): return " sowie ".join(dict.fromkeys(eigentuemer_nominativ(b) for b in items))
 
     if quelle:
@@ -357,9 +367,9 @@ if os.path.exists(LOGO_FILE):
     col_logo.image(LOGO_FILE, use_container_width=True)
 
 st.markdown("<div class='main-title'>Wie viel Stadt besitzt die Stadt?</div>", unsafe_allow_html=True)
-st.markdown("<div class='title-subtext'>Recherche-Portal für das Immobilienregister Biel</div>", unsafe_allow_html=True)
+st.markdown("<div class='title-subtext'>Suchportal für den Immobilienbesitz der Stadt Biel</div>", unsafe_allow_html=True)
 
-t1, t2 = st.tabs(["🔍 Suche & Recherche", "🗺️ Interaktive Karte"])
+t1, t2 = st.tabs(["🔍 Suche & Recherche", "Interaktive Karte"])
 
 # ── Tab 1: Suche ─────────────────────────────────────────────────────────────
 with t1:
@@ -441,8 +451,16 @@ with t2:
     </div>
     """, unsafe_allow_html=True)
 
-    with st.spinner("Lade Karte..."):
-        geo = load_geojson_map_data(df)
+    if not st.session_state.map_rendered:
+        if st.button("🗺️ Karte laden"):
+            st.session_state.map_rendered = True
+            st.rerun()
+
+    if st.session_state.map_rendered:
+        with st.spinner("Lade Karte..."):
+            geo = load_geojson_map_data(df)
+    else:
+        geo = None
 
     if geo:
         st.pydeck_chart(pdk.Deck(
