@@ -131,29 +131,19 @@ div[data-testid="stExpander"] {
     text-align: center; color: #888888 !important;
     margin-top: 0; margin-bottom: 2rem; font-size: 1.05rem;
 }
-/* Lottie-Container: kein Rahmen, kein überschüssiges Padding */
-iframe[title="st_lottie"] {
-    display: block;
-    margin: 0 auto;
-}
-div:has(> iframe[title="st_lottie"]) {
-    padding: 0 !important;
-    margin: 0 !important;
-    border: none !important;
-    background: transparent !important;
+/* Lottie-Container: überschüssigen Whitespace entfernen */
+[data-testid="stCustomComponentV1"] {
+    margin-top: -3rem !important;
+    margin-bottom: -3rem !important;
 }
 @media (max-width: 768px) {
     .main-title {
         font-size: 2rem;
         line-height: 1.1;
     }
-    /* Lottie auf Mobile kleiner + weniger Abstand */
-    iframe[title="st_lottie"] {
-        height: 120px !important;
-    }
-    div:has(> iframe[title="st_lottie"]) {
-        margin-top: -1rem !important;
-        margin-bottom: -1rem !important;
+    [data-testid="stCustomComponentV1"] {
+        margin-top: -2rem !important;
+        margin-bottom: -2rem !important;
     }
 }
 .label-text {
@@ -394,7 +384,7 @@ if os.path.exists(LOTTIE_FILE):
     with open(LOTTIE_FILE, encoding="utf-8") as f:
         lottie_data = json.load(f)
     with col_logo:
-        st_lottie(lottie_data, height=200, loop=True, quality="high", key="logo")
+        st_lottie(lottie_data, height=150, loop=True, quality="high", key="logo")
 
 st.markdown("<div class='main-title'>Wie viel Stadt besitzt die Stadt?</div>", unsafe_allow_html=True)
 st.markdown("<div class='title-subtext'>Suchportal für den Immobilienbesitz der Stadt Biel</div>", unsafe_allow_html=True)
