@@ -7,7 +7,6 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- THEME LOGIK ---
 col_space, col_toggle = st.columns([6, 1.4])
 with col_toggle:
     dark_mode = st.toggle("Dark Mode", value=False)
@@ -18,7 +17,6 @@ base_css = """
 
 #MainMenu, footer, header {visibility: hidden;}
 
-/* Fix für Toggle Text */
 div[data-testid="stWidgetLabel"] p {
     white-space: nowrap !important;
     font-weight: 500;
@@ -127,17 +125,14 @@ div[data-testid="stMetricValue"] {
 
 dark_css = """
 <style>
-/* Hintergrund der gesamten App */
 [data-testid="stAppViewContainer"], .stApp {
     background-color: #000000 !important;
 }
 
-/* Toggle Beschriftung SICHTBAR machen */
 div[data-testid="stWidgetLabel"] p {
     color: #FFFFFF !important;
 }
 
-/* INPUT & PLACEHOLDER */
 .stTextInput > div > div > input {
     background-color: #1C1C1E !important;
     border-color: #333336 !important;
@@ -147,8 +142,6 @@ div[data-testid="stWidgetLabel"] p {
     color: #86868B !important;
 }
 
-/* EXPANDER DARK MODE - TOTALER OVERRIDE */
-/* Wir erzwingen Schwarz für ALLES, was innerhalb eines Expanders liegt */
 div[data-testid="stExpander"], 
 div[data-testid="stExpander"] *, 
 div[data-testid="stExpanderDetails"] {
@@ -156,7 +149,6 @@ div[data-testid="stExpanderDetails"] {
     border-color: #333336 !important;
 }
 
-/* Textfarben innerhalb des Expanders */
 div[data-testid="stExpander"] summary, 
 div[data-testid="stExpander"] p, 
 div[data-testid="stExpander"] span, 
@@ -165,18 +157,15 @@ div[data-testid="stExpander"] strong {
     color: #F5F5F7 !important;
 }
 
-/* Metriken & Titel */
 .main-title, div[data-testid="stMetricValue"], .info-text, .value-text {
     color: #F5F5F7 !important;
 }
 
-/* Tabs */
 .stTabs [aria-selected="true"] {
     color: #F5F5F7 !important;
     border-bottom-color: #F5F5F7 !important;
 }
 
-/* Methodik Box */
 .methodology-box {
     background-color: #1C1C1E !important;
     color: #A1A1A6 !important;
@@ -193,11 +182,15 @@ else:
     st.markdown(base_css, unsafe_allow_html=True)
     logo_file = "logo_dark.png"
 
-# --- DATEN UND LOGIK ---
 @st.cache_data
 def load_excel():
     df = pd.read_excel('Biel_Adressregister_Final.xlsx', sheet_name='Adress-Verzeichnis')
     return df.fillna("")
+
+def bereinige_eigentum_text(text):
+    t = str(text)
+    t = t.replace("01: ", "").replace("02: ", "").replace("03: ", "")
+    return t
 
 def generiere_besitz_text(besitz_string, nummern_string):
     if not besitz_string: return "Keine detaillierten Eigentumsdaten verfügbar."
@@ -248,7 +241,6 @@ def generiere_besitz_text(besitz_string, nummern_string):
 
     return f"<strong>VOLLEIGENTUM</strong><br><br>Sowohl der Boden als auch das Gebäude gehören vollumfänglich <strong>{name_dativ(boden_besitzer[0])}</strong>."
 
-# --- APP STRUKTUR ---
 try:
     df = load_excel()
 
@@ -282,7 +274,7 @@ try:
                             st.markdown(f"<div class='value-text'>{str(row['Grundstücksnummer(n)']).replace(' / ', '<br>')}</div>", unsafe_allow_html=True)
                         with c2:
                             st.markdown("<div class='label-text'>Eigentumsverhältnis</div>", unsafe_allow_html=True)
-                            st.markdown(f"<div class='value-text'>{str(row['Eigentumsverhältnis']).replace(' / ', '<br>')}</div>", unsafe_allow_html=True)
+                            st.markdown(f"<div class='value-text'>{bereinige_eigentum_text(row['Eigentumsverhältnis']).replace(' / ', '<br>')}</div>", unsafe_allow_html=True)
                         with c3:
                             st.markdown("<div class='label-text'>Fläche(n)</div>", unsafe_allow_html=True)
                             st.markdown(f"<div class='value-text'>{str(row['Fläche(n)']).replace(' / ', '<br>')}</div>", unsafe_allow_html=True)
@@ -309,9 +301,11 @@ try:
     <div class='methodology-box'>
         <strong>Methodik & Datenquellen</strong><br>
         Diese Anwendung basiert auf den öffentlichen Geodaten des WebGIS der Stadt Biel (Stand der letzten Aktualisierung: 26.11.2025). 
-        Um eine höchstmögliche Genauigkeit zu gewährleisten, wurden die Eigentumskategorien mit den amtlichen Daten des Bundes-Kartenportals 
-        (map.geo.admin.ch) abgeglichen und verifiziert. Die Zuordnung erfolgt über die amtlichen Grundstücksnummern. 
-        Bitte beachten Sie, dass dies kein amtliches Grundbuchdokument ersetzt.
+        Da die zugrundeliegenden Rohdaten der Stadt Biel eine Unterteilung in drei spezifische Eigentümergruppen (Stadt Biel, öffentliche 
+        Institutionen und Private) vorgeben, ist eine detailliertere Aufschlüsselung innerhalb dieser Kategorien auf dieser Datenbasis 
+        nicht möglich. Um eine höchstmögliche Genauigkeit zu gewährleisten, wurden die Kategorien mit den amtlichen Daten des 
+        Bundes-Kartenportals (map.geo.admin.ch) abgeglichen und verifiziert. Die Zuordnung erfolgt über die amtlichen Grundstücksnummern. 
+        Dies ersetzt kein amtliches Grundbuchdokument.
     </div>
     """, unsafe_allow_html=True)
 
