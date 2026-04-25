@@ -10,12 +10,13 @@ import urllib.parse
 import pandas as pd
 import pydeck as pdk
 import streamlit as st
+from streamlit_lottie import st_lottie
 
 # ── 1. KONSTANTEN ────────────────────────────────────────────────────────────
 
 EXCEL_FILE  = "Biel_Adressregister_Final.xlsx"
 GEOJSON_FILE = "Eigentum.md"
-LOGO_FILE   = "logo_dark.png"
+LOTTIE_FILE = "ajour-logo.json"
 SHEET_NAME  = "Adress-Verzeichnis"
 
 # Eigentümer-Codes → (Dativ, Nominativ)
@@ -373,10 +374,13 @@ df = load_data()
 if df is None:
     st.stop()
 
-# Logo
+# Logo (Lottie-Animation)
 col_logo = st.columns([1, 1.5, 1])[1]
-if os.path.exists(LOGO_FILE):
-    col_logo.image(LOGO_FILE, use_container_width=True)
+if os.path.exists(LOTTIE_FILE):
+    with open(LOTTIE_FILE, encoding="utf-8") as f:
+        lottie_data = json.load(f)
+    with col_logo:
+        st_lottie(lottie_data, height=120, loop=True, quality="high", key="logo")
 
 st.markdown("<div class='main-title'>Wie viel Stadt besitzt die Stadt?</div>", unsafe_allow_html=True)
 st.markdown("<div class='title-subtext'>Suchportal für den Immobilienbesitz der Stadt Biel</div>", unsafe_allow_html=True)
