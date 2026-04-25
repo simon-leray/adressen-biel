@@ -7,6 +7,7 @@ st.set_page_config(
     layout="wide"
 )
 
+# --- THEME LOGIK ---
 col_space, col_toggle = st.columns([6, 1.4])
 with col_toggle:
     dark_mode = st.toggle("Dark Mode", value=False)
@@ -17,6 +18,7 @@ base_css = """
 
 #MainMenu, footer, header {visibility: hidden;}
 
+/* Fix für Toggle Text */
 div[data-testid="stWidgetLabel"] p {
     white-space: nowrap !important;
     font-weight: 500;
@@ -38,7 +40,6 @@ div[data-testid="stWidgetLabel"] p {
     border-radius: 12px;
     padding: 1rem 1.5rem;
     font-size: 1.1rem;
-    font-weight: 400;
     background-color: #FFFFFF !important;
     border: 1px solid #EAEAEA !important;
     color: #111111 !important;
@@ -50,11 +51,6 @@ div[data-testid="stExpander"] {
     margin-bottom: 1rem;
     background-color: #FFFFFF !important;
     border: 1px solid #EAEAEA !important;
-    box-shadow: 0 2px 15px rgba(0,0,0,0.02);
-}
-
-div[data-testid="stExpanderDetails"] {
-    background-color: transparent !important;
 }
 
 div[data-testid="stExpander"] summary {
@@ -94,7 +90,6 @@ div[data-testid="stMetricValue"] {
     font-size: 2.8rem;
     letter-spacing: -0.03em;
     margin-top: 1rem;
-    margin-bottom: 0.5rem;
     color: #111111 !important;
 }
 
@@ -103,13 +98,6 @@ div[data-testid="stMetricValue"] {
     color: #888888 !important; 
     margin-bottom: 3rem;
     font-size: 1.05rem;
-}
-
-.info-text {
-    font-size: 1.05rem;
-    line-height: 1.6;
-    font-weight: 400;
-    color: #111111 !important;
 }
 
 .label-text {
@@ -121,10 +109,8 @@ div[data-testid="stMetricValue"] {
     color: #86868B !important;
 }
 
-.value-text {
+.value-text, .info-text {
     font-size: 0.95rem;
-    font-weight: 400;
-    margin-bottom: 1.2rem;
     color: #111111 !important;
 }
 
@@ -135,59 +121,46 @@ div[data-testid="stMetricValue"] {
     background-color: #F2F2F7;
     font-size: 0.9rem;
     color: #555555;
-    line-height: 1.5;
 }
 </style>
 """
 
 dark_css = """
 <style>
-/* Hintergrund App */
-[data-testid="stAppViewContainer"] {
+/* Hintergrund der gesamten App */
+[data-testid="stAppViewContainer"], .stApp {
     background-color: #000000 !important;
 }
 
-/* Toggle Text */
+/* Toggle Beschriftung SICHTBAR machen */
 div[data-testid="stWidgetLabel"] p {
     color: #FFFFFF !important;
 }
 
-/* INPUT & PLACEHOLDER FIX */
+/* INPUT & PLACEHOLDER */
 .stTextInput > div > div > input {
     background-color: #1C1C1E !important;
     border-color: #333336 !important;
     color: #F5F5F7 !important;
 }
-
 .stTextInput input::placeholder {
     color: #86868B !important;
-    opacity: 1;
 }
 
-/* EXPANDER DARK MODE - RADIKAL-FIX */
-/* Wir treffen hier alle möglichen Container-Klassen von Streamlit Expandern */
+/* EXPANDER DARK MODE - TOTALER OVERRIDE */
+/* Wir erzwingen Schwarz für ALLES, was innerhalb eines Expanders liegt */
 div[data-testid="stExpander"], 
-div[data-testid="stExpander"] > div,
-div[data-testid="stExpanderDetails"],
-div[class*="st-emotion-cache"] > div[data-testid="stExpanderDetails"],
-.st-emotion-cache-1h9usn2, 
-.st-emotion-cache-6q9sum,
-.st-emotion-cache-eqm3v3 {
+div[data-testid="stExpander"] *, 
+div[data-testid="stExpanderDetails"] {
     background-color: #1C1C1E !important;
     border-color: #333336 !important;
 }
 
-/* Verhindert Hover-Aufhellung */
-div[data-testid="stExpander"]:hover,
-div[data-testid="stExpander"] summary:hover {
-    background-color: #2C2C2E !important;
-    border-color: #48484A !important;
-}
-
+/* Textfarben innerhalb des Expanders */
 div[data-testid="stExpander"] summary, 
-div[data-testid="stExpander"] summary p,
-div[data-testid="stExpander"] p,
-div[data-testid="stExpander"] span,
+div[data-testid="stExpander"] p, 
+div[data-testid="stExpander"] span, 
+div[data-testid="stExpander"] div,
 div[data-testid="stExpander"] strong {
     color: #F5F5F7 !important;
 }
@@ -220,6 +193,7 @@ else:
     st.markdown(base_css, unsafe_allow_html=True)
     logo_file = "logo_dark.png"
 
+# --- DATEN UND LOGIK ---
 @st.cache_data
 def load_excel():
     df = pd.read_excel('Biel_Adressregister_Final.xlsx', sheet_name='Adress-Verzeichnis')
@@ -244,7 +218,6 @@ def generiere_besitz_text(besitz_string, nummern_string):
 
     besitzer_liste = str(besitz_string).split(" / ")
     info_liste = str(nummern_string).split(" / ")
-    
     boden_besitzer, bau_besitzer, quelle_besitzer = [], [], []
     
     for i in range(len(besitzer_liste)):
@@ -265,7 +238,6 @@ def generiere_besitz_text(besitz_string, nummern_string):
         txt_boden = " sowie ".join(list(dict.fromkeys([name_dativ(b) for b in boden_besitzer])))
         txt_bau_nom = " sowie ".join(list(dict.fromkeys([name_nominativ(b) for b in bau_besitzer])))
         txt_bau_dat = " sowie ".join(list(dict.fromkeys([name_dativ(b) for b in bau_besitzer])))
-
         if txt_boden == txt_bau_dat:
             return f"<strong>BAURECHT</strong><br><br>Sowohl der Grund und Boden als auch das Gebäude gehören <strong>{txt_boden}</strong>. Rechtlich gesehen sind dies jedoch zwei getrennte Grundstücke, die unabhängig voneinander behandelt werden."
         return f"<strong>BAURECHT</strong><br><br>Der Grund und Boden gehört <strong>{txt_boden}</strong>. Jedoch besitzt <strong>{txt_bau_nom}</strong> hier ein Baurecht. Das Gebäude gehört rechtlich <strong>{txt_bau_dat}</strong>, obwohl der Boden <strong>{txt_boden}</strong> gehört."
@@ -276,6 +248,7 @@ def generiere_besitz_text(besitz_string, nummern_string):
 
     return f"<strong>VOLLEIGENTUM</strong><br><br>Sowohl der Boden als auch das Gebäude gehören vollumfänglich <strong>{name_dativ(boden_besitzer[0])}</strong>."
 
+# --- APP STRUKTUR ---
 try:
     df = load_excel()
 
