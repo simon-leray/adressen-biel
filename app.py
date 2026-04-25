@@ -154,10 +154,10 @@ div[data-testid="stExpander"] {
     [data-testid="stHorizontalBlock"] {
         flex-direction: row !important;
         flex-wrap: nowrap !important;
+        gap: 0.5rem !important;
     }
     [data-testid="column"] {
         min-width: 0 !important;
-        flex: 1 1 0% !important;
     }
 }
 .label-text {
@@ -418,8 +418,8 @@ with t1:
     def clear_search():
         st.session_state.search_input = ""
 
-    # Buttons: 50/50 → garantiert nebeneinander auf Desktop & Mobile
-    col_btn1, col_btn2 = st.columns(2)
+    # Buttons: natürliche Breite, nebeneinander
+    col_btn1, col_btn2, _ = st.columns([1, 1, 4])
     with col_btn1:
         st.button("🔍 Suchen", use_container_width=True)
     with col_btn2:
