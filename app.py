@@ -83,7 +83,7 @@ st.markdown("""
     background-color: #FAFAFA !important;
 }
 .block-container {
-    padding-top: 1rem;
+    padding-top: 0 !important;
     padding-bottom: 4rem;
     max-width: 900px;
 }
@@ -131,10 +131,10 @@ div[data-testid="stExpander"] {
     text-align: center; color: #888888 !important;
     margin-top: 0; margin-bottom: 2rem; font-size: 1.05rem;
 }
-/* Lottie-Container: überschüssigen Whitespace entfernen */
+/* Lottie: Whitespace komprimieren */
 [data-testid="stCustomComponentV1"] {
-    margin-top: -6rem !important;
-    margin-bottom: -6rem !important;
+    margin-top: -1.5rem !important;
+    margin-bottom: -2rem !important;
 }
 @media (max-width: 768px) {
     .main-title {
@@ -142,8 +142,8 @@ div[data-testid="stExpander"] {
         line-height: 1.1;
     }
     [data-testid="stCustomComponentV1"] {
-        margin-top: -5rem !important;
-        margin-bottom: -5rem !important;
+        margin-top: -1rem !important;
+        margin-bottom: -1.5rem !important;
     }
 }
 .label-text {
@@ -387,7 +387,7 @@ if os.path.exists(LOTTIE_FILE):
     with col_logo:
         st.components.v1.html(f"""
         <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
-        <div id="lottie" style="width:100%; height:200px; margin-bottom:-60px; display:flex; align-items:center; justify-content:center;"></div>
+        <div id="lottie" style="width:100%; height:280px; display:flex; align-items:center; justify-content:center;"></div>
         <script>
           lottie.loadAnimation({{
             container: document.getElementById('lottie'),
@@ -397,7 +397,7 @@ if os.path.exists(LOTTIE_FILE):
             animationData: {lottie_json_str}
           }});
         </script>
-        """, height=150)
+        """, height=280)
 
 st.markdown("<div class='main-title'>Wie viel Stadt besitzt die Stadt?</div>", unsafe_allow_html=True)
 st.markdown("<div class='title-subtext'>Suchportal für den Immobilienbesitz der Stadt Biel</div>", unsafe_allow_html=True)
