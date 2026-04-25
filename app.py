@@ -79,7 +79,7 @@ div[role="radiogroup"] {
     gap: 8px !important; 
     margin-top: 0.5rem;
     margin-bottom: 1.5rem;
-    flex-wrap: wrap; /* Erlaubt Umbruch bei kleinen Bildschirmen */
+    flex-wrap: wrap; 
 }
 
 div[role="radiogroup"] > label {
@@ -213,35 +213,36 @@ try:
             search = st.text_input("Suche", placeholder="Strasse und Hausnummer (z.B. Ring 16)...", label_visibility="collapsed")
             
             # --- DARUNTER DIE FILTER-CHIPS ---
-            filter_options = ["Alle Adressen", "Stadt: Vollbesitz", "Stadt: Boden (Baurecht abgegeben)", "Stadt: Gebäude (Baurecht übernommen)"]
+            filter_options = [
+                "Alle Adressen", 
+                "Vollbesitz der Stadt (Gebäude und Land)", 
+                "Bodenbesitz der Stadt (Land im Baurecht abgegeben)", 
+                "Gebäudebesitz der Stadt (Land im Baurecht erhalten)"
+            ]
             f_mode = st.radio("Eigentumstyp", filter_options, horizontal=True, label_visibility="collapsed")
             
-            # Dynamischer Erklärtext für die Filter (platzsparend unter den Chips)
-            if f_mode == "Stadt: Vollbesitz":
+            # Dynamischer Erklärtext für die Filter
+            if f_mode == "Alle Adressen":
+                st.markdown("<p style='color:#888888; font-size:0.85rem; margin-top:-10px; margin-bottom:20px;'>💡 Zeigt das gesamte Immobilienregister. <strong>Bitte Suchbegriff eingeben.</strong></p>", unsafe_allow_html=True)
+            elif f_mode == "Vollbesitz der Stadt (Gebäude und Land)":
                 st.markdown("<p style='color:#888888; font-size:0.85rem; margin-top:-10px; margin-bottom:20px;'>💡 Adressen, bei denen Boden und Gebäude vollständig der Stadt Biel gehören.</p>", unsafe_allow_html=True)
-            elif f_mode == "Stadt: Boden (Baurecht abgegeben)":
-                st.markdown("<p style='color:#888888; font-size:0.85rem; margin-top:-10px; margin-bottom:20px;'>💡 Die Stadt besitzt das Land, aber Dritte nutzen das Gebäude darauf (strategischer Landbesitz).</p>", unsafe_allow_html=True)
-            elif f_mode == "Stadt: Gebäude (Baurecht übernommen)":
+            elif f_mode == "Bodenbesitz der Stadt (Land im Baurecht abgegeben)":
+                st.markdown("<p style='color:#888888; font-size:0.85rem; margin-top:-10px; margin-bottom:20px;'>💡 Die Stadt besitzt das Land, hat es aber an Dritte im Baurecht abgegeben.</p>", unsafe_allow_html=True)
+            elif f_mode == "Gebäudebesitz der Stadt (Land im Baurecht erhalten)":
                 st.markdown("<p style='color:#888888; font-size:0.85rem; margin-top:-10px; margin-bottom:20px;'>💡 Der Boden gehört jemand anderem, aber die Stadt hat darauf ein Gebäude im Baurecht.</p>", unsafe_allow_html=True)
-            else:
-                 st.write("") # Platzhalter für "Alle Adressen"
 
-            # --- FILTER LOGIK (GRUNDLAGE) ---
+            # --- FILTER LOGIK ---
             f_df = df.copy()
-            if f_mode == "Stadt: Vollbesitz":
-                f_df = df[df['Eigentumsverhältnis'].str.contains("01") & ~df['Grundstücksnummer(n)'].str.contains("Baurecht")]
-            elif f_mode == "Stadt: Boden (Baurecht abgegeben)":
-                f_df = df[df['Eigentumsverhältnis'].str.contains("01") & df['Grundstücksnummer(n)'].str.contains("Baurecht")]
-            elif f_mode == "Stadt: Gebäude (Baurecht übernommen)":
-                f_df = df[~df['Eigentumsverhältnis'].str.contains("01") & df['Grundstücksnummer(n)'].str.contains("01") & df['Grundstücksnummer(n)'].str.contains("Baurecht")]
+            if f_mode == "Vollbesitz der Stadt (Gebäude und Land)":
+                f_df = f_df[f_df['Eigentumsverhältnis'].str.contains("01", na=False) & ~f_df['Grundstücksnummer(n)'].str.contains("Baurecht", na=False)]
+            elif f_mode == "Bodenbesitz der Stadt (Land im Baurecht abgegeben)":
+                f_df = f_df[f_df['Eigentumsverhältnis'].str.contains("01", na=False) & f_df['Grundstücksnummer(n)'].str.contains("Baurecht", na=False)]
+            elif f_mode == "Gebäudebesitz der Stadt (Land im Baurecht erhalten)":
+                f_df = f_df[~f_df['Eigentumsverhältnis'].str.contains("01", na=False) & f_df['Grundstücksnummer(n)'].str.contains("01", na=False) & f_df['Grundstücksnummer(n)'].str.contains("Baurecht", na=False)]
 
-            # --- SMARTE SUCHLOGIK ("Ring 16" Fix) ---
+            # --- SUCHLOGIK ---
             if search:
-                # Wir splitten die Eingabe bei Leerzeichen (z.B. ["Ring", "16"])
-                search_terms = search.strip().split()
-                for term in search_terms:
-                    # Jeder Begriff muss in der Adresse vorkommen!
-                    f_df = f_df[f_df['Adresse'].str.contains(term, case=False)]
+                f_df = f_df[f_df['Adresse'].str.contains(search, case=False, na=False)]
 
             # --- ANZEIGE-LOGIK ---
             show_results = True
