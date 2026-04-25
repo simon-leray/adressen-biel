@@ -7,7 +7,7 @@ st.set_page_config(
     layout="wide"
 )
 
-col_space, col_toggle = st.columns([6, 1.2])
+col_space, col_toggle = st.columns([6, 1.4])
 with col_toggle:
     dark_mode = st.toggle("Dark Mode", value=False)
 
@@ -19,8 +19,7 @@ base_css = """
 
 div[data-testid="stWidgetLabel"] p {
     white-space: nowrap !important;
-    width: auto !important;
-    min-width: 100px !important;
+    font-weight: 500;
 }
 
 [data-testid="stAppViewContainer"] {
@@ -74,9 +73,7 @@ div[data-testid="stExpander"] summary {
 .stTabs [data-baseweb="tab"] {
     height: 50px;
     background-color: transparent;
-    border-radius: 0px;
     font-weight: 500;
-    font-size: 1rem;
     color: #999999 !important;
 }
 
@@ -88,7 +85,6 @@ div[data-testid="stExpander"] summary {
 div[data-testid="stMetricValue"] {
     font-size: 3.5rem;
     font-weight: 300;
-    letter-spacing: -0.03em;
     color: #111111 !important;
 }
 
@@ -112,7 +108,7 @@ div[data-testid="stMetricValue"] {
 .info-text {
     font-size: 1.05rem;
     line-height: 1.6;
-    font-weight: 300;
+    font-weight: 400;
     color: #111111 !important;
 }
 
@@ -131,11 +127,6 @@ div[data-testid="stMetricValue"] {
     margin-bottom: 1.2rem;
     color: #111111 !important;
 }
-
-hr {
-    border-top: 1px solid rgba(134, 134, 139, 0.2);
-    margin: 1.5rem 0;
-}
 </style>
 """
 
@@ -144,38 +135,35 @@ dark_css = """
 [data-testid="stAppViewContainer"] {
     background-color: #000000 !important;
 }
-[data-testid="stHeader"] {
-    background-color: transparent !important;
+div[data-testid="stWidgetLabel"] p {
+    color: #FFFFFF !important;
+}
+div[data-testid="stExpander"], 
+div[data-testid="stExpanderDetails"],
+.st-emotion-cache-1h9usn2, 
+.st-emotion-cache-6q9sum {
+    background-color: #1C1C1E !important;
+    border-color: #333336 !important;
+}
+div[data-testid="stExpander"] summary, 
+div[data-testid="stExpander"] summary p,
+div[data-testid="stExpander"] p,
+div[data-testid="stExpander"] span {
+    color: #F5F5F7 !important;
 }
 .stTextInput > div > div > input {
     background-color: #1C1C1E !important;
     border-color: #333336 !important;
     color: #F5F5F7 !important;
 }
-div[data-testid="stExpander"] {
-    background-color: #1C1C1E !important;
-    border-color: #333336 !important;
-}
-div[data-testid="stExpanderDetails"] {
-    background-color: #1C1C1E !important;
-}
-div[data-testid="stExpander"] summary, div[data-testid="stExpander"] summary p {
+.main-title, div[data-testid="stMetricValue"], .info-text, .value-text {
     color: #F5F5F7 !important;
-}
-div[data-testid="stExpander"] summary svg {
-    color: #F5F5F7 !important;
-    fill: #F5F5F7 !important;
 }
 .stTabs [aria-selected="true"] {
     color: #F5F5F7 !important;
     border-bottom-color: #F5F5F7 !important;
 }
-div[data-testid="stMetricValue"], .info-text, .value-text, .main-title {
-    color: #F5F5F7 !important;
-}
-hr {
-    border-top-color: #333336 !important;
-}
+hr { border-top-color: #333336 !important; }
 </style>
 """
 
@@ -220,6 +208,7 @@ def generiere_besitz_text(besitz_string, nummern_string):
         elif "Baurecht" in info: bau_besitzer.append(b)
         else: boden_besitzer.append(b)
 
+    # 1. QUELLENRECHT
     if quelle_besitzer:
         wer_quelle = name_nominativ(quelle_besitzer[0])
         if boden_besitzer:
@@ -227,20 +216,22 @@ def generiere_besitz_text(besitz_string, nummern_string):
             return f"<strong>QUELLENRECHT</strong><br><br>Der Grund und Boden dieser Parzelle gehört <strong>{wer_boden}</strong>. Jedoch besitzt <strong>{wer_quelle}</strong> hier ein Quellenrecht. Diese Partei darf auf diesem fremden Grundstück eine Wasserquelle fassen und nutzen."
         return f"<strong>QUELLENRECHT</strong><br><br>Sowohl der Boden als auch das Recht zur Wassernutzung gehören <strong>{name_dativ(quelle_besitzer[0])}</strong>."
 
+    # 2. BAURECHT
     if bau_besitzer:
         txt_boden = " sowie ".join(list(dict.fromkeys([name_dativ(b) for b in boden_besitzer])))
-        txt_bau = " sowie ".join(list(dict.fromkeys([name_dativ(b) for b in bau_besitzer])))
         txt_bau_nom = " sowie ".join(list(dict.fromkeys([name_nominativ(b) for b in bau_besitzer])))
+        txt_bau_dat = " sowie ".join(list(dict.fromkeys([name_dativ(b) for b in bau_besitzer])))
 
-        if txt_boden == txt_bau:
+        if txt_boden == txt_bau_dat:
             return f"<strong>BAURECHT</strong><br><br>Sowohl der Grund und Boden als auch das Gebäude gehören <strong>{txt_boden}</strong>. Rechtlich gesehen sind dies jedoch zwei getrennte Grundstücke, die unabhängig voneinander behandelt werden."
-        
-        return f"<strong>BAURECHT</strong><br><br>Der Grund und Boden gehört <strong>{txt_boden}</strong>. Jedoch besitzt <strong>{txt_bau_nom}</strong> hier ein Baurecht. Das Gebäude gehört rechtlich <strong>{txt_bau}</strong>, obwohl der Boden <strong>{txt_boden}</strong> gehört."
+        return f"<strong>BAURECHT</strong><br><br>Der Grund und Boden gehört <strong>{txt_boden}</strong>. Jedoch besitzt <strong>{txt_bau_nom}</strong> hier ein Baurecht. Das Gebäude gehört rechtlich <strong>{txt_bau_dat}</strong>, obwohl der Boden <strong>{txt_boden}</strong> gehört."
 
+    # 3. GRENZFALL
     if len(boden_besitzer) > 1:
         txt_boden = " sowie ".join(list(dict.fromkeys([name_dativ(b) for b in boden_besitzer])))
         return f"<strong>GRENZFALL</strong><br><br>Dieses Gebäude steht auf mehreren Grundstücken gleichzeitig. Der gesamte Boden gehört <strong>{txt_boden}</strong>."
 
+    # 4. NORMALFALL
     return f"<strong>VOLLEIGENTUM</strong><br><br>Sowohl der Boden als auch das Gebäude gehören vollumfänglich <strong>{name_dativ(boden_besitzer[0])}</strong>."
 
 try:
@@ -268,7 +259,7 @@ try:
                 for _, row in results.iterrows():
                     with st.expander(f"{row['Adresse']}", expanded=True):
                         st.markdown(f"<div class='info-text'>{generiere_besitz_text(row['Eigentumsverhältnis'], row['Grundstücksnummer(n)'])}</div>", unsafe_allow_html=True)
-                        st.markdown("<hr>", unsafe_allow_html=True)
+                        st.markdown("<hr style='border-top: 1px solid rgba(134, 134, 139, 0.2); margin: 1.5rem 0;'>", unsafe_allow_html=True)
                         
                         c1, c2, c3 = st.columns(3)
                         with c1:
@@ -291,7 +282,7 @@ try:
         col_m1.metric("Mit Stadt-Beteiligung", len(stadt_besitz))
         col_m2.metric("In Privatbesitz", len(privat_besitz))
         
-        st.markdown("<hr>", unsafe_allow_html=True)
+        st.markdown("<hr style='border-top: 1px solid rgba(134, 134, 139, 0.2); margin: 1.5rem 0;'>", unsafe_allow_html=True)
         st.markdown("<div class='label-text' style='margin-bottom: 1rem;'>Top 10 der grössten städtischen Areale</div>", unsafe_allow_html=True)
         
         stadt_besitz_sort = stadt_besitz.copy()
@@ -300,4 +291,4 @@ try:
         st.dataframe(top_10[['Adresse', 'Fläche(n)', 'Grundstücksnummer(n)']], use_container_width=True, hide_index=True)
 
 except Exception as e:
-    st.markdown("<p class='title-subtext'>Ein Systemfehler ist aufgetreten. Bitte laden Sie die Seite neu.</p>", unsafe_allow_html=True)
+    st.markdown(f"<p class='title-subtext'>Ein Fehler ist aufgetreten: {e}</p>", unsafe_allow_html=True)
