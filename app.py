@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import os
-import plotly.express as px
 import re
 
 # --- SEITENKONFIGURATION ---
@@ -10,12 +9,12 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- THEME LOGIK & TOGGLE ---
+# --- THEME LOGIK ---
 col_space, col_toggle = st.columns([6, 1.4])
 with col_toggle:
     dark_mode = st.toggle("Dark Mode", value=False)
 
-# --- CSS DESIGN (APPLE MINIMALISM) ---
+# --- CSS DESIGN ---
 base_css = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -28,7 +27,7 @@ div[data-testid="stWidgetLabel"] p {
 }
 
 [data-testid="stAppViewContainer"] {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    font-family: 'Inter', sans-serif !important;
     background-color: #FAFAFA !important;
     transition: background-color 0.3s ease;
 }
@@ -36,7 +35,7 @@ div[data-testid="stWidgetLabel"] p {
 .block-container {
     padding-top: 1rem;
     padding-bottom: 4rem;
-    max-width: 950px;
+    max-width: 850px;
 }
 
 .stTextInput > div > div > input {
@@ -46,7 +45,6 @@ div[data-testid="stWidgetLabel"] p {
     background-color: #FFFFFF !important;
     border: 1px solid #EAEAEA !important;
     color: #111111 !important;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.03);
 }
 
 div[data-testid="stExpander"] {
@@ -54,126 +52,50 @@ div[data-testid="stExpander"] {
     margin-bottom: 1rem;
     background-color: #FFFFFF !important;
     border: 1px solid #EAEAEA !important;
-    box-shadow: 0 2px 15px rgba(0,0,0,0.02);
 }
 
-div[data-testid="stExpanderDetails"] {
-    background-color: transparent !important;
-}
+div[data-testid="stExpanderDetails"] { background-color: transparent !important; }
 
 div[data-testid="stExpander"] summary {
-    font-weight: 500;
-    font-size: 1.1rem;
-    padding: 1.2rem;
-    color: #111111 !important;
-}
-
-.stTabs [data-baseweb="tab-list"] {
-    gap: 2rem;
-    border-bottom: 1px solid rgba(134, 134, 139, 0.3);
-    margin-bottom: 2.5rem;
-}
-
-.stTabs [data-baseweb="tab"] {
-    height: 50px;
-    background-color: transparent;
-    font-weight: 500;
-    color: #999999 !important;
-}
-
-.stTabs [aria-selected="true"] {
-    color: #111111 !important;
-    border-bottom: 2px solid #111111 !important;
-}
-
-div[data-testid="stMetricValue"] {
-    font-size: 3.2rem;
-    font-weight: 300;
-    color: #111111 !important;
+    font-weight: 500; font-size: 1.1rem; padding: 1.2rem; color: #111111 !important;
 }
 
 .main-title {
-    text-align: center;
-    font-weight: 700;
-    font-size: 2.8rem;
-    letter-spacing: -0.03em;
-    margin-top: 1rem;
-    margin-bottom: 0.5rem;
-    color: #111111 !important;
+    text-align: center; font-weight: 700; font-size: 2.8rem; letter-spacing: -0.03em; margin-top: 1rem; color: #111111 !important;
 }
 
 .title-subtext {
-    text-align: center; 
-    color: #888888 !important; 
-    margin-bottom: 3rem;
-    font-size: 1.05rem;
+    text-align: center; color: #888888 !important; margin-bottom: 3rem; font-size: 1.05rem;
 }
 
 .label-text {
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: #86868B !important;
-    margin-bottom: 0.5rem;
+    font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #86868B !important; margin-bottom: 0.5rem;
 }
 
-.info-text, .value-text {
-    font-size: 0.95rem;
-    color: #111111 !important;
+.info-text, .value-text { font-size: 0.95rem; color: #111111 !important; }
+
+.fact-card {
+    padding: 2rem; border-radius: 16px; background-color: #FFFFFF; border: 1px solid #EAEAEA; margin-bottom: 1rem;
 }
 
 .methodology-box {
-    margin-top: 4rem;
-    padding: 2rem;
-    border-radius: 12px;
-    background-color: #F2F2F7;
-    font-size: 0.9rem;
-    color: #555555;
-    line-height: 1.5;
+    margin-top: 4rem; padding: 2rem; border-radius: 12px; background-color: #F2F2F7; font-size: 0.9rem; color: #555555; line-height: 1.5;
 }
+
+.stTabs [aria-selected="true"] { color: #111111 !important; border-bottom: 2px solid #111111 !important; }
 </style>
 """
 
 dark_css = """
 <style>
-[data-testid="stAppViewContainer"], .stApp {
-    background-color: #000000 !important;
-}
-
-div[data-testid="stWidgetLabel"] p {
-    color: #FFFFFF !important;
-}
-
-.stTextInput > div > div > input {
-    background-color: #1C1C1E !important;
-    border-color: #333336 !important;
-    color: #F5F5F7 !important;
-}
-
-div[data-testid="stExpander"], 
-div[data-testid="stExpander"] *, 
-div[data-testid="stExpanderDetails"] {
-    background-color: #1C1C1E !important;
-    border-color: #333336 !important;
-}
-
-div[data-testid="stExpander"] summary p,
-.main-title, div[data-testid="stMetricValue"], 
-.info-text, .value-text, div[data-testid="stExpander"] strong {
-    color: #F5F5F7 !important;
-}
-
-.stTabs [aria-selected="true"] {
-    color: #F5F5F7 !important;
-    border-bottom-color: #F5F5F7 !important;
-}
-
-.methodology-box {
-    background-color: #1C1C1E !important;
-    color: #A1A1A6 !important;
-}
-
+[data-testid="stAppViewContainer"], .stApp { background-color: #000000 !important; }
+div[data-testid="stWidgetLabel"] p { color: #FFFFFF !important; }
+div[data-testid="stExpander"], div[data-testid="stExpander"] *, div[data-testid="stExpanderDetails"] { background-color: #1C1C1E !important; border-color: #333336 !important; }
+div[data-testid="stExpander"] summary p, .main-title, div[data-testid="stMetricValue"], .info-text, .value-text, div[data-testid="stExpander"] strong { color: #F5F5F7 !important; }
+.stTextInput > div > div > input { background-color: #1C1C1E !important; border-color: #333336 !important; color: #F5F5F7 !important; }
+.fact-card { background-color: #1C1C1E !important; border-color: #333336 !important; }
+.stTabs [aria-selected="true"] { color: #F5F5F7 !important; border-bottom-color: #F5F5F7 !important; }
+.methodology-box { background-color: #1C1C1E !important; color: #A1A1A6 !important; }
 hr { border-top-color: #333336 !important; }
 </style>
 """
@@ -185,26 +107,7 @@ st.markdown(base_css + (dark_css if dark_mode else ""), unsafe_allow_html=True)
 def load_data():
     df = pd.read_excel('Biel_Adressregister_Final.xlsx', sheet_name='Adress-Verzeichnis')
     df = df.fillna("")
-    
-    # Fläche extrahieren
     df['Fläche_Zahl'] = df['Fläche(n)'].str.extract(r'(\d+)').astype(float).fillna(0)
-    
-    # Rechtsform erkennen
-    def check_recht(row):
-        txt = str(row['Grundstücksnummer(n)'])
-        if "Baurecht" in txt: return "Baurecht"
-        if "Quellenrecht" in txt: return "Quellenrecht"
-        return "Vollbesitz"
-    df['Rechtsform'] = df.apply(check_recht, axis=1)
-    
-    # Kategorie Mapping
-    def map_kat(val):
-        t = str(val)
-        if "01" in t: return "Stadt Biel"
-        if "02" in t: return "Öffentl. Institutionen"
-        if "03" in t: return "Privat"
-        return "Sonstige"
-    df['Kategorie'] = df['Eigentumsverhältnis'].apply(map_kat)
     return df
 
 def bereinige_eigentum_text(text):
@@ -212,7 +115,6 @@ def bereinige_eigentum_text(text):
 
 def generiere_besitz_text(besitz_string, nummern_string):
     if not besitz_string: return "Keine detaillierten Daten verfügbar."
-    
     besitzer_liste = str(besitz_string).split(" / ")
     info_liste = str(nummern_string).split(" / ")
     boden_besitzer, bau_besitzer, quelle_besitzer = [], [], []
@@ -231,34 +133,15 @@ def generiere_besitz_text(besitz_string, nummern_string):
         if "02" in t: return "einer öffentlichen Institution (Bund, Kanton, SBB oder Ähnliche)"
         return "einem unbekannten Eigentümer"
 
-    def name_nominativ(text):
-        t = str(text).lower()
-        if "01" in t: return "die Stadt Biel"
-        if "03" in t: return "eine Privatperson oder private Firma"
-        if "02" in t: return "eine öffentliche Institution (Bund, Kanton, SBB oder Ähnliche)"
-        return "ein unbekannter Eigentümer"
-
     if quelle_besitzer:
-        wer_quelle = name_nominativ(quelle_besitzer[0])
-        if boden_besitzer:
-            wer_boden = name_dativ(boden_besitzer[0])
-            return f"<strong>QUELLENRECHT</strong><br><br>Der Grund und Boden dieser Parzelle gehört <strong>{wer_boden}</strong>. Jedoch besitzt <strong>{wer_quelle}</strong> hier ein Quellenrecht."
-        return f"Sowohl der Boden als auch das Recht zur Wassernutzung gehören <strong>{name_dativ(quelle_besitzer[0])}</strong>."
-
+        return f"<strong>QUELLENRECHT</strong><br><br>Der Boden gehört <strong>{name_dativ(boden_besitzer[0])}</strong>, jedoch besteht ein Quellenrecht."
     if bau_besitzer:
         txt_boden = " sowie ".join(list(dict.fromkeys([name_dativ(b) for b in boden_besitzer])))
-        txt_bau_nom = " sowie ".join(list(dict.fromkeys([name_nominativ(b) for b in bau_besitzer])))
-        txt_bau_dat = " sowie ".join(list(dict.fromkeys([name_dativ(b) for b in bau_besitzer])))
-        
-        if txt_boden == txt_bau_dat:
-            return f"<strong>BAURECHT</strong><br><br>Sowohl der Grund und Boden als auch das Gebäude gehören <strong>{txt_boden}</strong>. Rechtlich gesehen sind dies jedoch zwei getrennte Grundstücke."
-        
-        return f"<strong>BAURECHT</strong><br><br>Der Grund und Boden gehört <strong>{txt_boden}</strong>. Jedoch besitzt <strong>{txt_bau_nom}</strong> hier ein Baurecht. Das Gebäude gehört rechtlich <strong>{txt_bau_dat}</strong>, obwohl der Boden <strong>{txt_boden}</strong> gehört."
-
+        return f"<strong>BAURECHT</strong><br><br>Der Grund und Boden gehört <strong>{txt_boden}</strong>. Jedoch besteht hier ein Baurecht am Gebäude."
+    
     txt_boden = " sowie ".join(list(dict.fromkeys([name_dativ(b) for b in boden_besitzer])))
-    return f"<strong>VOLLEIGENTUM</strong><br><br>Sowohl der Boden als auch das Gebäude gehören vollumfänglich <strong>{txt_boden}</strong>."
+    return f"<strong>VOLLEIGENTUM</strong><br><br>Boden und Gebäude gehören vollumfänglich <strong>{txt_boden}</strong>."
 
-# --- APP START ---
 try:
     df = load_data()
 
@@ -269,9 +152,9 @@ try:
         if os.path.exists(logo_file): st.image(logo_file, use_container_width=True)
             
     st.markdown("<div class='main-title'>Wie viel Stadt besitzt die Stadt?</div>", unsafe_allow_html=True)
-    st.markdown("<div class='title-subtext'>Analyse der Bieler Eigentumsverhältnisse auf Basis amtlicher Geodaten.</div>", unsafe_allow_html=True)
+    st.markdown("<div class='title-subtext'>Analyse des Immobilienregisters auf Basis amtlicher Geodaten.</div>", unsafe_allow_html=True)
 
-    tab1, tab2 = st.tabs(["Adress-Suche", "Bestandesanalyse"])
+    tab1, tab2 = st.tabs(["🔍 Adress-Suche", "📊 Facts & Figures"])
 
     with tab1:
         st.write("")
@@ -283,63 +166,49 @@ try:
                     with st.expander(f"{row['Adresse']}", expanded=True):
                         st.markdown(f"<div class='info-text'>{generiere_besitz_text(row['Eigentumsverhältnis'], row['Grundstücksnummer(n)'])}</div>", unsafe_allow_html=True)
                         st.markdown("<hr style='border-top: 1px solid rgba(134,134,139,0.1); margin: 1.5rem 0;'>", unsafe_allow_html=True)
-                        
                         c1, c2, c3 = st.columns(3)
-                        with c1:
-                            st.markdown("<div class='label-text'>Grundstück</div>", unsafe_allow_html=True)
-                            st.markdown(f"<div class='value-text'>{str(row['Grundstücksnummer(n)']).replace(' / ', '<br>')}</div>", unsafe_allow_html=True)
-                        with c2:
-                            st.markdown("<div class='label-text'>Eigentum</div>", unsafe_allow_html=True)
-                            st.markdown(f"<div class='value-text'>{bereinige_eigentum_text(row['Eigentumsverhältnis']).replace(' / ', '<br>')}</div>", unsafe_allow_html=True)
-                        with c3:
-                            st.markdown("<div class='label-text'>Fläche</div>", unsafe_allow_html=True)
-                            st.markdown(f"<div class='value-text'>{str(row['Fläche(n)']).replace(' / ', '<br>')}</div>", unsafe_allow_html=True)
-            else:
-                st.markdown("<p class='title-subtext' style='margin-top: 2rem;'>Es wurden keine Einträge gefunden.</p>", unsafe_allow_html=True)
+                        c1.markdown(f"<div class='label-text'>Grundstück</div><div class='value-text'>{row['Grundstücksnummer(n)']}</div>", unsafe_allow_html=True)
+                        c2.markdown(f"<div class='label-text'>Eigentum</div><div class='value-text'>{bereinige_eigentum_text(row['Eigentumsverhältnis'])}</div>", unsafe_allow_html=True)
+                        c3.markdown(f"<div class='label-text'>Fläche</div><div class='value-text'>{row['Fläche(n)']}</div>", unsafe_allow_html=True)
 
     with tab2:
         st.write("")
-        st.markdown("<div class='label-text'>Interaktive Exploration</div>", unsafe_allow_html=True)
+        st.markdown("<div class='label-text'>Bestandesaufnahme Biel</div>", unsafe_allow_html=True)
         
-        # Filter
-        f1, f2, f3 = st.columns([2, 1, 1])
-        with f1:
-            kat_f = st.multiselect("Kategorien", options=df['Kategorie'].unique(), default=df['Kategorie'].unique())
-        with f2:
-            recht_f = st.multiselect("Rechtsformen", options=df['Rechtsform'].unique(), default=df['Rechtsform'].unique())
-        with f3:
-            min_flaeche = st.number_input("Mindestfläche (m²)", 0, 100000, 0, step=100)
+        # Berechnung der Facts
+        stadt_df = df[df['Eigentumsverhältnis'].str.contains("01", na=False)]
+        privat_df = df[df['Eigentumsverhältnis'].str.contains("03", na=False)]
+        baurecht_df = df[df['Grundstücksnummer(n)'].str.contains("Baurecht", na=False)]
         
-        filtered_df = df[(df['Kategorie'].isin(kat_f)) & (df['Rechtsform'].isin(recht_f)) & (df['Fläche_Zahl'] >= min_flaeche)]
+        total_objekte = len(df)
+        total_flaeche = df['Fläche_Zahl'].sum()
+        stadt_flaeche = stadt_df['Fläche_Zahl'].sum()
         
-        # Metriken
-        col_m1, col_m2, col_m3 = st.columns(3)
-        col_m1.metric("Gefilterte Objekte", f"{len(filtered_df):,}")
-        col_m2.metric("Gesamtfläche", f"{int(filtered_df['Fläche_Zahl'].sum()):,} m²")
-        baurecht_quote = (len(filtered_df[filtered_df['Rechtsform'] == 'Baurecht']) / len(filtered_df) * 100) if len(filtered_df) > 0 else 0
-        col_m3.metric("Baurechts-Quote", f"{baurecht_quote:.1f}%")
-        
-        st.write("---")
-        
-        # Treemap Visualisierung
-        st.markdown("<div class='label-text'>Flächenverteilung (Treemap)</div>", unsafe_allow_html=True)
-        if not filtered_df.empty:
-            fig = px.treemap(filtered_df, 
-                             path=['Kategorie', 'Rechtsform', 'Adresse'], 
-                             values='Fläche_Zahl',
-                             color='Kategorie',
-                             color_discrete_sequence=["#000000", "#86868b", "#d2d2d7"] if not dark_mode else ["#FFFFFF", "#86868b", "#444444"])
-            fig.update_layout(margin=dict(t=0, b=0, l=0, r=0), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', height=500)
-            fig.update_traces(textinfo="label+value")
-            st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
-        else:
-            st.info("Keine Daten für diese Filterkombination vorhanden.")
+        # Grid für Karten
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown(f"""<div class='fact-card'><span class='label-text'>Öffentlicher Grund</span><br><div style='font-size:2.5rem; font-weight:300;'>{stadt_flaeche/total_flaeche*100:.1f}%</div><span style='color:#86868B;'>der gesamten Parzellenfläche gehört der Stadt Biel.</span></div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div class='fact-card'><span class='label-text'>Baurechts-Strategie</span><br><div style='font-size:2.5rem; font-weight:300;'>{len(baurecht_df)}</div><span style='color:#86868B;'>Objekte stehen im Baurecht. Hier bleibt die Stadt oder eine Institution oft Bodeneigentümerin.</span></div>""", unsafe_allow_html=True)
+        with c2:
+            st.markdown(f"""<div class='fact-card'><span class='label-text'>Anzahl Adressen</span><br><div style='font-size:2.5rem; font-weight:300;'>{len(stadt_df)}</div><span style='color:#86868B;'>Adressen sind ganz oder teilweise im Besitz der Stadt Biel.</span></div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div class='fact-card'><span class='label-text'>Private Dominanz</span><br><div style='font-size:2.5rem; font-weight:300;'>{len(privat_df)}</div><span style='color:#86868B;'>Gebäude befinden sich in privatem Eigentum (Privatpersonen oder Firmen).</span></div>""", unsafe_allow_html=True)
+
+        st.write("")
+        st.markdown(f"""
+        <div style='background-color: {"#1C1C1E" if dark_mode else "#FFFFFF"}; padding: 2rem; border-radius: 16px; border: 1px solid {"#333336" if dark_mode else "#EAEAEA"};'>
+            <span class='label-text'>Zusammenfassung</span><br><br>
+            <span class='info-text'>Das Immobilienregister umfasst aktuell <strong>{total_objekte:,}</strong> erfasste Adressen. 
+            Während der Grossteil der Gebäude privat bewirtschaftet wird, sichert sich die Stadt Biel durch 
+            gezieltes Eigentum und Baurechtsverträge massgeblichen Einfluss auf die Stadtentwicklung. 
+            Besonders grosse Avale und Infrastrukturflächen verbleiben im öffentlichen Besitz.</span>
+        </div>
+        """, unsafe_allow_html=True)
 
     # --- METHODIK ---
     st.markdown(f"""
     <div class='methodology-box'>
         <strong>Methodik & Datenquellen</strong><br>
-        Diese Anwendung basiert auf den öffentlichen Geodaten des WebGIS der Stadt Biel (Stand der letzten Aktualisierung: 26.11.2025). 
+        Diese Anwendung basiert auf den öffentlichen Geodaten des WebGIS der Stadt Biel (Stand: 26.11.2025). 
         Da die zugrundeliegenden Rohdaten der Stadt Biel eine Unterteilung in drei spezifische Eigentümergruppen (Stadt Biel, öffentliche 
         Institutionen und Private) vorgeben, ist eine detailliertere Aufschlüsselung innerhalb dieser Kategorien auf dieser Datenbasis 
         nicht möglich. Um eine höchstmögliche Genauigkeit zu gewährleisten, wurden die Kategorien mit den amtlichen Daten des 
