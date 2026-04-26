@@ -17,7 +17,7 @@ from streamlit_lottie import st_lottie
 EXCEL_FILE   = "Biel_Adressregister_Final.xlsx"
 GEOJSON_FILE = "Eigentum.md"
 LOTTIE_FILE  = "ajour-logo.json"
-GWR_FILE     = "GWR_Data_Biel.xlsx"
+GWR_FOLDER   = "371"
 SHEET_NAME   = "Adress-Verzeichnis"
 
 # GWR: Gebäudekategorie-Labels kürzen
@@ -468,22 +468,92 @@ def load_data() -> pd.DataFrame | None:
 
 @st.cache_data
 def load_gwr() -> pd.DataFrame | None:
-    """Lädt GWR-Daten, aggregiert auf Gebäudeebene (eine Zeile pro Gebäude)."""
-    if not os.path.exists(GWR_FILE):
+    """Lädt GWR-Daten aus Split-CSV-Dateien; eine Zeile pro Adresseingang."""
+    geb_path  = os.path.join(GWR_FOLDER, "gebaeude_batiment_edificio.csv")
+    eing_path = os.path.join(GWR_FOLDER, "eingang_entree_entrata.csv")
+    if not os.path.exists(geb_path) or not os.path.exists(eing_path):
         return None
-    raw = pd.read_excel(GWR_FILE, sheet_name='Data')
-    wohn_count = raw.groupby('EGID').size().rename('WOHN_ANZAHL')
-    keep = ['EGID', 'STRNAME', 'DEINR', 'GKAT_LABEL', 'GBAUP_LABEL', 'GBAUJ',
-            'GASTW', 'GENH1_LABEL', 'GENW1_LABEL']
-    geb = (raw[keep]
-           .drop_duplicates('EGID')
-           .set_index('EGID')
-           .join(wohn_count))
-    geb['Baujahr']   = geb.apply(lambda r: format_baujahr(r['GBAUJ'], r['GBAUP_LABEL']), axis=1)
-    geb['Kategorie'] = geb['GKAT_LABEL'].map(GKAT_KURZ).fillna(geb['GKAT_LABEL'])
-    geb['_key']      = (geb['STRNAME'].apply(normalize) + '_' +
-                        geb['DEINR'].astype(str).str.strip().str.lower())
-    return geb.reset_index()
+
+    # Code → Label Lookups (aus kodes_codes_codici.csv, hardcodiert)
+    _GKAT_CODE = {
+        1010: "Provisorische Unterkunft",
+        1020: "Gebäude mit ausschliesslicher Wohnnutzung",
+        1030: "Andere Wohngebäude (Wohngebäude mit Nebennutzung)",
+        1040: "Gebäude mit teilweiser Wohnnutzung",
+        1060: "Gebäude ohne Wohnnutzung",
+        1080: "Sonderbau",
+    }
+    _GBAUP_CODE = {
+        8011: "Periode vor 1919",
+        8012: "Periode von 1919 bis 1945",
+        8013: "Periode von 1946 bis 1960",
+        8014: "Periode von 1961 bis 1970",
+        8015: "Periode von 1971 bis 1980",
+        8016: "Periode von 1981 bis 1985",
+        8017: "Periode von 1986 bis 1990",
+        8018: "Periode von 1991 bis 1995",
+        8019: "Periode von 1996 bis 2000",
+        8020: "Periode von 2001 bis 2005",
+        8021: "Periode von 2006 bis 2010",
+        8022: "Periode von 2011 bis 2015",
+        8023: "Periode nach 2015",
+    }
+    _GENH_CODE = {
+        7500: "Keine",
+        7501: "Luft",
+        7510: "Erdwärme (generisch)",
+        7511: "Erdwärmesonde",
+        7512: "Erdregister",
+        7513: "Wasser (Grundwasser, Oberflächenwasser, Abwasser)",
+        7520: "Gas",
+        7530: "Heizöl",
+        7540: "Holz (generisch)",
+        7541: "Holz (Stückholz)",
+        7542: "Holz (Pellets)",
+        7543: "Holz (Schnitzel)",
+        7550: "Abwärme (innerhalb des Gebäudes)",
+        7560: "Elektrizität",
+        7570: "Sonne (thermisch)",
+        7580: "Fernwärme (generisch)",
+        7581: "Fernwärme (Hochtemperatur)",
+        7582: "Fernwärme (Niedertemperatur)",
+        7598: "Unbestimmt",
+        7599: "Andere",
+    }
+
+    # 1. Gebäudedaten (eine Zeile pro EGID, nur benötigte Spalten)
+    geb = pd.read_csv(
+        geb_path, sep='\t',
+        usecols=['EGID', 'GKAT', 'GBAUP', 'GBAUJ', 'GASTW', 'GANZWHG', 'GENH1', 'GENW1'],
+    )
+    geb['GKAT_LABEL']  = geb['GKAT'].map(_GKAT_CODE).fillna('')
+    geb['GBAUP_LABEL'] = geb['GBAUP'].map(_GBAUP_CODE).fillna('')
+    geb['GENH1_LABEL'] = geb['GENH1'].map(_GENH_CODE).fillna('Unbestimmt')
+    geb['GENW1_LABEL'] = geb['GENW1'].map(_GENH_CODE).fillna('Unbestimmt')
+    geb['WOHN_ANZAHL'] = geb['GANZWHG'].fillna(0).astype(int)
+
+    # 2. Eingänge – nur deutsche Strassennamen (STRSP = 9901)
+    eingang = pd.read_csv(
+        eing_path, sep='\t',
+        usecols=['EGID', 'STRNAME', 'DEINR', 'STRSP'],
+    )
+    eingang = eingang[eingang['STRSP'] == 9901].drop(columns='STRSP')
+
+    # 3. Join: Eingänge mit Gebäudeinfos verknüpfen (eine Zeile pro Adresseingang)
+    merged = eingang.merge(
+        geb[['EGID', 'GKAT_LABEL', 'GBAUP_LABEL', 'GBAUJ', 'GASTW',
+             'GENH1_LABEL', 'GENW1_LABEL', 'WOHN_ANZAHL']],
+        on='EGID', how='left'
+    )
+
+    # 4. Berechnete Spalten
+    merged['Baujahr']   = merged.apply(
+        lambda r: format_baujahr(r['GBAUJ'], r['GBAUP_LABEL']), axis=1
+    )
+    merged['Kategorie'] = merged['GKAT_LABEL'].map(GKAT_KURZ).fillna(merged['GKAT_LABEL'])
+    merged['_key']      = (merged['STRNAME'].apply(normalize) + '_' +
+                           merged['DEINR'].astype(str).str.strip().str.lower())
+    return merged
 
 @st.cache_data
 def prepare_energie_data(df: pd.DataFrame, gwr_df: pd.DataFrame) -> pd.DataFrame:
