@@ -467,15 +467,14 @@ def load_data() -> pd.DataFrame | None:
     return df
 
 @st.cache_data
-def load_gwr() -> tuple[dict, pd.DataFrame] | tuple[None, None]:
-    """Lädt GWR-Daten, aggregiert auf Gebäudeebene, gibt Lookup-Dict zurück."""
+def load_gwr() -> pd.DataFrame | None:
+    """Lädt GWR-Daten, aggregiert auf Gebäudeebene (eine Zeile pro Gebäude)."""
     if not os.path.exists(GWR_FILE):
-        return None, None
+        return None
     raw = pd.read_excel(GWR_FILE, sheet_name='Data')
     wohn_count = raw.groupby('EGID').size().rename('WOHN_ANZAHL')
     keep = ['EGID', 'STRNAME', 'DEINR', 'GKAT_LABEL', 'GBAUP_LABEL', 'GBAUJ',
-            'GASTW', 'GAREA', 'GENH1_LABEL', 'GWAERZH1_LABEL',
-            'GENH2_LABEL', 'GENW1_LABEL']
+            'GASTW', 'GENH1_LABEL', 'GENW1_LABEL']
     geb = (raw[keep]
            .drop_duplicates('EGID')
            .set_index('EGID')
@@ -484,8 +483,16 @@ def load_gwr() -> tuple[dict, pd.DataFrame] | tuple[None, None]:
     geb['Kategorie'] = geb['GKAT_LABEL'].map(GKAT_KURZ).fillna(geb['GKAT_LABEL'])
     geb['_key']      = (geb['STRNAME'].apply(normalize) + '_' +
                         geb['DEINR'].astype(str).str.strip().str.lower())
-    lookup = {row['_key']: row.to_dict() for _, row in geb.iterrows()}
-    return lookup, geb.reset_index()
+    return geb.reset_index()
+
+@st.cache_data
+def prepare_energie_data(df: pd.DataFrame, gwr_df: pd.DataFrame) -> pd.DataFrame:
+    """Verknüpft Adressregister (nur Stadtliegenschaften) mit GWR. Einmalig gecacht."""
+    stadt = df[df['Filter_Kategorie'] != 'Andere'].copy()
+    stadt['_key'] = stadt['Adresse'].apply(adresse_key)
+    gwr_keys = gwr_df[['_key', 'Baujahr', 'Kategorie', 'GENH1_LABEL',
+                        'GENW1_LABEL', 'GASTW', 'WOHN_ANZAHL']].copy()
+    return stadt.merge(gwr_keys, on='_key', how='inner')
 
 @st.cache_data
 def load_lottie(path: str) -> dict | None:
@@ -549,7 +556,7 @@ if lottie_data:
 st.markdown("<div class='main-title'>Wie viel Stadt besitzt die Stadt?</div>", unsafe_allow_html=True)
 st.markdown("<div class='title-subtext'>Suchportal für den Immobilienbesitz der Stadt Biel</div>", unsafe_allow_html=True)
 
-gwr_lookup, gwr_df = load_gwr()
+gwr_df = load_gwr()
 
 t1, t2, t3, t4 = st.tabs(["🔍 Suche", "Interaktive Karte", "⚡ Energie", "ℹ️ Methodik"])
 
@@ -689,43 +696,6 @@ with t1:
                 c2.markdown(f"<div class='label-text'>Eigentum</div>{eigentuem_clean}", unsafe_allow_html=True)
                 c3.markdown(f"<div class='label-text'>Fläche</div>{r['Fläche(n)']}", unsafe_allow_html=True)
 
-                # ── GWR Gebäudedaten ──────────────────────────────────────
-                gwr = gwr_lookup.get(adresse_key(r['Adresse'])) if gwr_lookup else None
-                if gwr:
-                    st.write("---")
-                    heizung  = energie_icon(str(gwr.get('GENH1_LABEL', '')))
-                    warmw    = energie_icon(str(gwr.get('GENW1_LABEL', '')))
-                    stockw   = int(gwr['GASTW']) if pd.notna(gwr.get('GASTW')) else '–'
-                    wohnanz  = int(gwr['WOHN_ANZAHL']) if pd.notna(gwr.get('WOHN_ANZAHL')) else '–'
-                    st.markdown(f"""
-<div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:0.5rem;">
-  <div style="flex:1;min-width:80px;">
-    <div class='label-text'>Baujahr</div>
-    <div>{gwr.get('Baujahr','–')}</div>
-  </div>
-  <div style="flex:2;min-width:120px;">
-    <div class='label-text'>Gebäudetyp</div>
-    <div>{gwr.get('Kategorie','–')}</div>
-  </div>
-  <div style="flex:1;min-width:60px;">
-    <div class='label-text'>Stockwerke</div>
-    <div>{stockw}</div>
-  </div>
-  <div style="flex:1;min-width:60px;">
-    <div class='label-text'>Wohnungen</div>
-    <div>{wohnanz}</div>
-  </div>
-</div>
-<div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:0.5rem;">
-  <div style="flex:1;min-width:120px;">
-    <div class='label-text'>Heizung</div>
-    <div>{heizung}</div>
-  </div>
-  <div style="flex:1;min-width:120px;">
-    <div class='label-text'>Warmwasser</div>
-    <div>{warmw}</div>
-  </div>
-</div>""", unsafe_allow_html=True)
 
         # Pagination-Navigation
         if total_pages > 1:
@@ -802,20 +772,13 @@ with t2:
 
 # ── Tab 3: Energie ────────────────────────────────────────────────────────────
 with t3:
-    if gwr_lookup is None or gwr_df is None:
+    if gwr_df is None:
         st.warning("GWR-Datei nicht gefunden. Bitte `GWR_Data_Biel.xlsx` im App-Verzeichnis ablegen.")
     else:
         st.markdown("<div style='margin-bottom:1.5rem;'>", unsafe_allow_html=True)
 
-        # Stadtliegenschaften mit GWR-Daten verknüpfen
-        stadt_df = df[df['Filter_Kategorie'] != 'Andere'].copy()
-        stadt_df['_key'] = stadt_df['Adresse'].apply(adresse_key)
-        gwr_keys = gwr_df.copy()
-        gwr_keys['_key'] = (gwr_keys['STRNAME'].apply(normalize) + '_' +
-                            gwr_keys['DEINR'].astype(str).str.strip().str.lower())
-        merged = stadt_df.merge(gwr_keys[['_key','Baujahr','Kategorie','GENH1_LABEL',
-                                           'GENW1_LABEL','GASTW','WOHN_ANZAHL']],
-                                on='_key', how='inner')
+        # Gecachter Merge – läuft nur einmal
+        merged = prepare_energie_data(df, gwr_df)
 
         total_geb   = len(merged)
         n_fossil    = merged['GENH1_LABEL'].isin(_FOSSIL).sum()
