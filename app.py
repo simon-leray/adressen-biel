@@ -32,11 +32,12 @@ GKAT_KURZ = {
 
 # GWR: Energieträger-Kategorisierung
 _FOSSIL     = {"Gas", "Heizöl"}
-_ERNEUERBAR = {"Luft", "Erdwärmesonde", "Erdwärme (generisch)",
+_ERNEUERBAR = {"Luft", "Erdwärmesonde", "Erdwärme (generisch)", "Erdregister",
                "Wasser (Grundwasser, Oberflächenwasser, Abwasser)",
                "Sonne (thermisch)", "Holz (generisch)", "Holz (Pellets)",
-               "Holz (Stückholz)", "Holz (Schnitzel)", "Abwärme (innerhalb des Gebäudes)"}
-_FERNWAERME = {"Fernwärme (generisch)"}
+               "Holz (Stückholz)", "Holz (Schnitzel)", "Abwärme (innerhalb des Gebäudes)",
+               "Elektrizität"}
+_FERNWAERME = {"Fernwärme (generisch)", "Fernwärme (Hochtemperatur)", "Fernwärme (Niedertemperatur)"}
 
 # Eigentümer-Codes → (Dativ, Nominativ)
 EIGENTUEMER = {
@@ -299,13 +300,18 @@ def natural_sort_key(s: str) -> str:
     """Zahlen im String auf 6 Stellen nullen-auffüllen → korrekte Sortierung."""
     return re.sub(r'(\d+)', lambda m: m.group(1).zfill(6), str(s).lower())
 
-def adresse_key(adresse: str) -> str:
-    """Matching-Key zwischen Adressregister und GWR: normalize(Strasse)_hausnummer"""
-    de_part = str(adresse).split(' / ')[0].strip()
-    tokens = de_part.rsplit(' ', 1)
+def _part_to_key(part: str) -> str:
+    """Hilfsfunktion: einen Adressteil in einen GWR-Matching-Key umwandeln."""
+    part = part.strip()
+    tokens = part.rsplit(' ', 1)
     if len(tokens) == 2:
         return normalize(tokens[0]) + '_' + tokens[1].strip().lower()
-    return normalize(de_part) + '_'
+    return normalize(part) + '_'
+
+def adresse_keys(adresse: str) -> list[str]:
+    """Gibt alle möglichen Matching-Keys zurück (DE- und FR-Teil bei zweisprachigen Adressen)."""
+    parts = str(adresse).split(' / ')
+    return [_part_to_key(p) for p in parts]
 
 def format_baujahr(gbauj, gbaup_label: str) -> str:
     """Gibt Baujahr als lesbaren String zurück."""
@@ -557,12 +563,27 @@ def load_gwr() -> pd.DataFrame | None:
 
 @st.cache_data
 def prepare_energie_data(df: pd.DataFrame, gwr_df: pd.DataFrame) -> pd.DataFrame:
-    """Verknüpft Adressregister (nur Stadtliegenschaften) mit GWR. Einmalig gecacht."""
+    """Verknüpft Adressregister (nur Stadtliegenschaften) mit GWR.
+    Probiert bei zweisprachigen Adressen beide Teile als Matching-Key."""
     stadt = df[df['Filter_Kategorie'] != 'Andere'].copy()
-    stadt['_key'] = stadt['Adresse'].apply(adresse_key)
     gwr_keys = gwr_df[['_key', 'Baujahr', 'Kategorie', 'GENH1_LABEL',
                         'GENW1_LABEL', 'GASTW', 'WOHN_ANZAHL']].copy()
-    return stadt.merge(gwr_keys, on='_key', how='inner')
+
+    # Key für den ersten Adressteil (meistens Deutsch)
+    stadt['_key1'] = stadt['Adresse'].apply(lambda a: adresse_keys(a)[0])
+    # Key für den zweiten Adressteil (meistens Französisch bei umgekehrter Reihenfolge)
+    stadt['_key2'] = stadt['Adresse'].apply(
+        lambda a: adresse_keys(a)[1] if len(adresse_keys(a)) > 1 else adresse_keys(a)[0]
+    )
+
+    # Erster Versuch: Key1
+    m1 = stadt.merge(gwr_keys, left_on='_key1', right_on='_key', how='inner')
+    # Zweiter Versuch: Key2 für noch nicht gematchte Adressen
+    matched = set(m1['Adresse'])
+    rest = stadt[~stadt['Adresse'].isin(matched)]
+    m2 = rest.merge(gwr_keys, left_on='_key2', right_on='_key', how='inner')
+
+    return pd.concat([m1, m2], ignore_index=True)
 
 @st.cache_data
 def load_lottie(path: str) -> dict | None:
