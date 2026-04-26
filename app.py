@@ -476,7 +476,7 @@ if lottie_data:
 st.markdown("<div class='main-title'>Wie viel Stadt besitzt die Stadt?</div>", unsafe_allow_html=True)
 st.markdown("<div class='title-subtext'>Suchportal für den Immobilienbesitz der Stadt Biel</div>", unsafe_allow_html=True)
 
-t1, t2, t3 = st.tabs(["🔍 Suche", "Interaktive Karte", "ℹ️ Methodik"])
+t1, t2, t3 = st.tabs(["🔍 Suche", "Interaktive Karte", "Info"])
 
 # Methodik-Tab rechtsbündig per JS
 st.components.v1.html("""
