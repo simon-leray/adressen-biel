@@ -411,6 +411,7 @@ def load_data() -> pd.DataFrame | None:
     df = pd.read_excel(EXCEL_FILE, sheet_name=SHEET_NAME).fillna("")
     df['Adresse'] = df['Adresse'].apply(deutsch_zuerst)
     df['Filter_Kategorie'] = df.apply(bestimme_kategorie, axis=1)
+    df['Adresse_norm'] = df['Adresse'].apply(normalize)
     return df
 
 @st.cache_data
@@ -570,7 +571,7 @@ with t1:
     if search:
         norm_search = normalize(search)
         pattern = r'\b' + re.escape(norm_search)
-        f_df = f_df[f_df['Adresse'].apply(normalize).str.contains(
+        f_df = f_df[f_df['Adresse_norm'].str.contains(
             pattern, case=False, na=False, regex=True
         )]
     f_df = f_df.sort_values('Adresse', key=lambda col: col.map(natural_sort_key))
