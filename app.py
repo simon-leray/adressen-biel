@@ -621,11 +621,18 @@ with t1:
                     st.session_state.page = page - 1
                     st.rerun()
             with cols[1]:
-                st.markdown(
-                    f"<div style='text-align:center; padding-top:0.4rem; "
-                    f"font-size:0.9rem; color:#555;'>Seite {page} von {total_pages}</div>",
-                    unsafe_allow_html=True,
+                selected = st.number_input(
+                    f"von {total_pages}",
+                    min_value=1,
+                    max_value=total_pages,
+                    value=page,
+                    step=1,
+                    key="page_input",
+                    label_visibility="visible",
                 )
+                if selected != page:
+                    st.session_state.page = selected
+                    st.rerun()
             with cols[2]:
                 if st.button("Nächste →", disabled=(page == total_pages), use_container_width=True):
                     st.session_state.page = page + 1
