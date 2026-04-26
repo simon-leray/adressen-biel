@@ -5,6 +5,7 @@ Immobilienregister Biel – Streamlit-App
 import os
 import re
 import json
+import html
 import urllib.parse
 
 import pandas as pd
@@ -84,11 +85,15 @@ st.markdown("""
 
 #MainMenu { display: none !important; }
 footer { display: none !important; }
-header { display: none !important; }
+[data-testid="stHeader"] { display: none !important; }
 [data-testid="stToolbar"] { display: none !important; }
 [data-testid="stStatusWidget"] { display: none !important; }
 [data-testid="stDeployButton"] { display: none !important; }
 [data-testid="stDecoration"] { display: none !important; }
+/* Letzten Tab (Info) rechtsbündig — CSS-Backup für JS */
+[data-baseweb="tab-list"] [data-baseweb="tab"]:last-of-type {
+    margin-left: auto !important;
+}
 
 [data-testid="stAppViewContainer"] {
     font-family: 'Inter', sans-serif !important;
@@ -155,14 +160,8 @@ div[data-testid="stExpander"] summary {
     margin-top: -0.5rem !important;
     margin-bottom: -1.5rem !important;
 }
-/* Desktop: nur Radio-Pills, kein Dropdown */
-@media (min-width: 769px) {
-    [data-testid="stSelectbox"] { display: none !important; }
-}
-/* Mobile: nur Dropdown, keine Radio-Pills */
+/* Mobile-Anpassungen (Radio/Selectbox-Toggle macht JS) */
 @media (max-width: 768px) {
-    [data-testid="stRadio"] { display: none !important; }
-    [data-testid="stSelectbox"] { display: block !important; }
     .main-title {
         font-size: 2rem;
         line-height: 1.1;
@@ -297,7 +296,9 @@ def natural_sort_key(s: str) -> str:
 # Französische Strassentypen stehen fast immer am Wortanfang
 _FR_PREFIX = re.compile(
     r'^\s*(rue|avenue|ave\.|place|chemin|route|voie|boulevard|allée|allee|'
-    r'impasse|passage|quai|sentier|promenade|grand-rue|côte|cote)\b',
+    r'impasse|passage|quai|sentier|promenade|grand-rue|côte|cote|pont|'
+    r'faubourg|esplanade|ruelle|traverse|rampe|montée|montee|terrasse|'
+    r'rond-point|square|jardin|parc)\b',
     re.IGNORECASE,
 )
 
@@ -518,6 +519,9 @@ st.components.v1.html("""
 
 def clear_search():
     st.session_state.search_input = ""
+    st.session_state.filter_mode = FILTER_OPTIONEN[0]
+    st.session_state._f_radio = FILTER_OPTIONEN[0]
+    st.session_state._f_select = FILTER_OPTIONEN[0]
     st.session_state.page = 1
 
 with t1:
@@ -535,9 +539,10 @@ with t1:
         st.button("✕ Löschen", on_click=clear_search, use_container_width=True)
 
     # ── Filter: Radio-Pills auf Desktop, Dropdown auf Mobile ─────────────────
-    cur_idx = next(
-        (i for i, o in enumerate(FILTER_OPTIONEN) if o == st.session_state.filter_mode), 0
-    )
+    # Beide Widgets vor dem Rendern auf den aktuellen filter_mode synchronisieren —
+    # sonst driften sie auseinander wenn sich die Viewport-Breite ändert.
+    st.session_state._f_radio  = st.session_state.filter_mode
+    st.session_state._f_select = st.session_state.filter_mode
 
     def _sync_radio():
         st.session_state.filter_mode = st.session_state._f_radio
@@ -548,11 +553,11 @@ with t1:
         st.session_state.page = 1
 
     st.radio(
-        "Filter", FILTER_OPTIONEN, index=cur_idx, horizontal=True,
+        "Filter", FILTER_OPTIONEN, horizontal=True,
         label_visibility="collapsed", key="_f_radio", on_change=_sync_radio,
     )
     st.selectbox(
-        "Filter", FILTER_OPTIONEN, index=cur_idx,
+        "Filter", FILTER_OPTIONEN,
         label_visibility="collapsed", key="_f_select", on_change=_sync_select,
     )
 
@@ -612,7 +617,7 @@ with t1:
     """, height=0)
 
     f_mode = st.session_state.filter_mode
-    hinweis_key = next((k for k in FILTER_HINWEISE if k in f_mode), "Alle")
+    hinweis_key = f_mode if f_mode in FILTER_HINWEISE else "Alle"
     st.markdown(
         f"<p style='color:#888888; font-size:0.85rem; margin-top:0.4rem; margin-bottom:20px;'>"
         f"{FILTER_HINWEISE[hinweis_key]}</p>",
@@ -626,10 +631,9 @@ with t1:
         st.session_state.page = 1
         st.session_state.prev_search = search
 
-    f_df = df.copy()
-    if "Vollbesitz" in f_mode:      f_df = f_df[f_df['Filter_Kategorie'] == "Vollbesitz"]
-    elif "Bodenbesitz" in f_mode:   f_df = f_df[f_df['Filter_Kategorie'] == "Bodenbesitz"]
-    elif "Gebäudebesitz" in f_mode: f_df = f_df[f_df['Filter_Kategorie'] == "Gebäudebesitz"]
+    f_df = df
+    if f_mode != "Alle":
+        f_df = f_df[f_df['Filter_Kategorie'] == f_mode]
     if search:
         norm_search = normalize(search)
         pattern = r'\b' + re.escape(norm_search)
@@ -646,8 +650,11 @@ with t1:
         total      = len(f_df)
         total_pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
         page       = max(1, min(st.session_state.page, total_pages))
-        start      = (page - 1) * PAGE_SIZE
-        end        = min(start + PAGE_SIZE, total)
+        # Pagination-State synchronisieren (sonst desync nach Filterwechsel)
+        if st.session_state.page != page:
+            st.session_state.page = page
+        start = (page - 1) * PAGE_SIZE
+        end   = min(start + PAGE_SIZE, total)
 
         # Trefferanzeige
         st.markdown(
@@ -658,23 +665,29 @@ with t1:
 
         # Ergebnisse der aktuellen Seite
         for _, r in f_df.iloc[start:end].iterrows():
-            with st.expander(str(r['Adresse'])):
-                st.markdown(
-                    generiere_besitz_text(r['Eigentumsverhältnis'], r['Grundstücksnummer(n)']),
-                    unsafe_allow_html=True,
-                )
-                maps_query = urllib.parse.quote(f"{r['Adresse']}, Biel")
-                st.markdown(
-                    f'<a href="https://www.google.com/maps/search/?api=1&query={maps_query}"'
-                    f' target="_blank" class="maps-link">📍 Auf Google Maps anzeigen</a>',
-                    unsafe_allow_html=True,
-                )
-                st.write("---")
-                c1, c2, c3 = st.columns(3)
-                eigentuem_clean = re.sub(r'\d{2}:\s*', '', str(r['Eigentumsverhältnis']))
-                c1.markdown(f"<div class='label-text'>Parzelle</div>{r['Grundstücksnummer(n)']}", unsafe_allow_html=True)
-                c2.markdown(f"<div class='label-text'>Eigentum</div>{eigentuem_clean}", unsafe_allow_html=True)
-                c3.markdown(f"<div class='label-text'>Fläche</div>{r['Fläche(n)']}", unsafe_allow_html=True)
+            try:
+                with st.expander(str(r['Adresse'])):
+                    st.markdown(
+                        generiere_besitz_text(r['Eigentumsverhältnis'], r['Grundstücksnummer(n)']),
+                        unsafe_allow_html=True,
+                    )
+                    maps_query = urllib.parse.quote(f"{r['Adresse']}, Biel")
+                    st.markdown(
+                        f'<a href="https://www.google.com/maps/search/?api=1&query={maps_query}"'
+                        f' target="_blank" class="maps-link">📍 Auf Google Maps anzeigen</a>',
+                        unsafe_allow_html=True,
+                    )
+                    st.write("---")
+                    c1, c2, c3 = st.columns(3)
+                    eigentuem_clean = re.sub(r'\d{2}:\s*', '', str(r['Eigentumsverhältnis']))
+                    parzelle = html.escape(str(r['Grundstücksnummer(n)']))
+                    eigentum = html.escape(eigentuem_clean)
+                    flaeche  = html.escape(str(r['Fläche(n)']))
+                    c1.markdown(f"<div class='label-text'>Parzelle</div>{parzelle}", unsafe_allow_html=True)
+                    c2.markdown(f"<div class='label-text'>Eigentum</div>{eigentum}", unsafe_allow_html=True)
+                    c3.markdown(f"<div class='label-text'>Fläche</div>{flaeche}", unsafe_allow_html=True)
+            except Exception as e:
+                st.error(f"Eintrag konnte nicht angezeigt werden: {e}")
 
         # Pagination-Navigation
         if total_pages > 1:
