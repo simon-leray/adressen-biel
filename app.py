@@ -623,6 +623,9 @@ lottie_data = load_lottie(LOTTIE_FILE)
 if lottie_data:
     st_lottie(lottie_data, height=100, loop=True, quality="high", key="logo")
 
+# Energie-Tab nur anzeigen wenn ?energie=1 in der URL
+_show_energie = st.query_params.get("energie", "") == "1"
+
 _toggle_url = "" if _show_energie else "?energie=1"
 st.markdown(
     f"<div class='main-title'>Wie "
@@ -633,9 +636,6 @@ st.markdown(
 st.markdown("<div class='title-subtext'>Suchportal für den Immobilienbesitz der Stadt Biel</div>", unsafe_allow_html=True)
 
 gwr_df = load_gwr()
-
-# Energie-Tab nur anzeigen wenn ?energie=1 in der URL
-_show_energie = st.query_params.get("energie", "") == "1"
 
 if _show_energie:
     t1, t2, t3, t4 = st.tabs(["🔍 Suche", "Interaktive Karte", "⚡ Energie", "ℹ️ Methodik"])
