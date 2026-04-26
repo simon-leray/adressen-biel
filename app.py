@@ -230,12 +230,20 @@ div[data-testid="stExpander"] summary {
     border-bottom: 2px solid #111111 !important;
 }
 .stRadio [data-testid="stWidgetLabel"] { display: none; }
-[data-testid="stRadio"] { margin-bottom: -0.75rem !important; }
+[data-testid="stRadio"],
+[data-testid="stRadio"] > div,
+[data-testid="stRadio"] > div > div {
+    margin-bottom: -0.75rem !important;
+    width: fit-content !important;
+    max-width: fit-content !important;
+}
 /* Segmented Control */
 div[role="radiogroup"] {
     display: inline-flex !important;
     flex-direction: row !important;
     flex-wrap: nowrap !important;
+    width: fit-content !important;
+    max-width: 475px !important;
     gap: 0 !important;
     margin-top: 0.5rem;
     margin-bottom: 0 !important;
