@@ -229,11 +229,13 @@ div[role="radiogroup"] {
 div[role="radiogroup"] > label {
     background-color: transparent !important;
     border: none !important;
-    padding: 7px 18px !important;
+    padding: 7px 0 !important;
     border-radius: 8px !important;
     cursor: pointer;
     white-space: nowrap !important;
     transition: background 0.15s ease;
+    flex: 1 !important;
+    text-align: center !important;
 }
 div[role="radiogroup"] > label > div:first-child { display: none !important; }
 div[role="radiogroup"] > label:has(input:checked) {
