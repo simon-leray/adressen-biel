@@ -206,13 +206,6 @@ div[data-testid="stExpander"] summary {
     color: #111111 !important;
     border-bottom: 2px solid #111111 !important;
 }
-/* Methodik-Tab rechtsbündig */
-[role="tablist"] {
-    display: flex !important;
-}
-[role="tablist"] button:last-child {
-    margin-left: auto !important;
-}
 .stRadio [data-testid="stWidgetLabel"] { display: none; }
 div[role="radiogroup"] {
     display: flex !important;
@@ -484,6 +477,29 @@ st.markdown("<div class='main-title'>Wie viel Stadt besitzt die Stadt?</div>", u
 st.markdown("<div class='title-subtext'>Suchportal für den Immobilienbesitz der Stadt Biel</div>", unsafe_allow_html=True)
 
 t1, t2, t3 = st.tabs(["🔍 Suche", "Interaktive Karte", "ℹ️ Methodik"])
+
+# Methodik-Tab rechtsbündig per JS
+st.components.v1.html("""
+<script>
+(function() {
+    function moveLastTab() {
+        try {
+            var doc = window.parent.document;
+            var tabList = doc.querySelector('[data-baseweb="tab-list"]');
+            if (!tabList) return;
+            var tabs = tabList.querySelectorAll('[data-baseweb="tab"]');
+            if (tabs.length === 0) return;
+            tabs[tabs.length - 1].style.marginLeft = 'auto';
+        } catch(e) {}
+    }
+    [0, 100, 300, 800].forEach(function(t) { setTimeout(moveLastTab, t); });
+    try {
+        new MutationObserver(moveLastTab)
+            .observe(window.parent.document.body, { childList: true, subtree: true });
+    } catch(e) {}
+})();
+</script>
+""", height=0)
 
 # ── Tab 1: Suche ─────────────────────────────────────────────────────────────
 
