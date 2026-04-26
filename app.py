@@ -623,25 +623,15 @@ lottie_data = load_lottie(LOTTIE_FILE)
 if lottie_data:
     st_lottie(lottie_data, height=100, loop=True, quality="high", key="logo")
 
-# Energie-Tab nur anzeigen wenn ?energie=1 in der URL
-_show_energie = st.query_params.get("energie", "") == "1"
-
-_toggle_url = "" if _show_energie else "?energie=1"
-st.markdown(
-    f"<div class='main-title'>Wie "
-    f"<span onclick=\"window.parent.location.search='{_toggle_url}'\" style='cursor:default;'>viel</span>"
-    f" Stadt besitzt die Stadt?</div>",
-    unsafe_allow_html=True,
-)
+st.markdown("<div class='main-title'>Wie viel Stadt besitzt die Stadt?</div>", unsafe_allow_html=True)
 st.markdown("<div class='title-subtext'>Suchportal für den Immobilienbesitz der Stadt Biel</div>", unsafe_allow_html=True)
 
 gwr_df = load_gwr()
 
-if _show_energie:
-    t1, t2, t3, t4 = st.tabs(["🔍 Suche", "Interaktive Karte", "⚡ Energie", "ℹ️ Methodik"])
-else:
-    t1, t2, t4 = st.tabs(["🔍 Suche", "Interaktive Karte", "ℹ️ Methodik"])
-    t3 = None
+if "energie_auth" not in st.session_state:
+    st.session_state.energie_auth = False
+
+t1, t2, t3, t4 = st.tabs(["🔍 Suche", "Interaktive Karte", "🧪 Experimentell", "ℹ️ Methodik"])
 
 # ── Tab 1: Suche ─────────────────────────────────────────────────────────────
 
@@ -853,9 +843,16 @@ def render_karte():
 with t2:
     render_karte()
 
-# ── Tab 3: Energie ────────────────────────────────────────────────────────────
-if t3 is not None:
-    with t3:
+# ── Tab 3: Experimentell (passwortgeschützt) ──────────────────────────────────
+with t3:
+    if not st.session_state.energie_auth:
+        pw = st.text_input("Passwort", type="password", key="energie_pw")
+        if pw == "1312":
+            st.session_state.energie_auth = True
+            st.rerun()
+        elif pw:
+            st.error("Falsches Passwort.")
+    else:
         if gwr_df is None:
             st.warning("GWR-Daten nicht gefunden (Ordner GWR_Data/ fehlt).")
         else:
