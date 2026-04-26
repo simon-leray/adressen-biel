@@ -66,9 +66,11 @@ FILTER_HINWEISE = {
 
 st.set_page_config(page_title="Immobilienregister Biel", layout="wide")
 
+PAGE_SIZE = 20
+
 # Session-State initialisieren (immer ganz oben, vor dem ersten Rendering)
-if "results_limit" not in st.session_state:
-    st.session_state.results_limit = 20
+if "page" not in st.session_state:
+    st.session_state.page = 1
 if "filter_mode" not in st.session_state:
     st.session_state.filter_mode = FILTER_OPTIONEN[0]
 if "prev_search" not in st.session_state:
@@ -478,7 +480,7 @@ t1, t2, t3 = st.tabs(["🔍 Suche", "Interaktive Karte", "ℹ️ Methodik"])
 
 def clear_search():
     st.session_state.search_input = ""
-    st.session_state.results_limit = 20
+    st.session_state.page = 1
 
 with t1:
     st.text_input(
@@ -501,11 +503,11 @@ with t1:
 
     def _sync_radio():
         st.session_state.filter_mode = st.session_state._f_radio
-        st.session_state.results_limit = 20
+        st.session_state.page = 1
 
     def _sync_select():
         st.session_state.filter_mode = st.session_state._f_select
-        st.session_state.results_limit = 20
+        st.session_state.page = 1
 
     st.radio(
         "Filter", FILTER_OPTIONEN, index=cur_idx, horizontal=True,
@@ -555,9 +557,9 @@ with t1:
 
     search = st.session_state.get("search_input", "")
 
-    # results_limit zurücksetzen wenn sich der Suchtext geändert hat
+    # Seite zurücksetzen wenn sich der Suchtext geändert hat
     if search != st.session_state.prev_search:
-        st.session_state.results_limit = 20
+        st.session_state.page = 1
         st.session_state.prev_search = search
 
     f_df = df.copy()
@@ -565,8 +567,6 @@ with t1:
     elif "Bodenbesitz" in f_mode:   f_df = f_df[f_df['Filter_Kategorie'] == "Bodenbesitz"]
     elif "Gebäudebesitz" in f_mode: f_df = f_df[f_df['Filter_Kategorie'] == "Gebäudebesitz"]
     if search:
-        # Umlaut-normalisiert und wortgrenzen-basiert suchen:
-        # "Bozingen" findet "Bözingen", "Ring" findet nicht "Fallbringen"
         norm_search = normalize(search)
         pattern = r'\b' + re.escape(norm_search)
         f_df = f_df[f_df['Adresse'].apply(normalize).str.contains(
@@ -579,14 +579,21 @@ with t1:
     elif f_df.empty:
         st.info("Keine Treffer.")
     else:
-        total = len(f_df)
-        shown = min(st.session_state.results_limit, total)
+        total      = len(f_df)
+        total_pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
+        page       = max(1, min(st.session_state.page, total_pages))
+        start      = (page - 1) * PAGE_SIZE
+        end        = min(start + PAGE_SIZE, total)
+
+        # Trefferanzeige
         st.markdown(
             f"<div style='margin-bottom:1rem; opacity:0.6; font-size:0.8rem;'>"
-            f"{shown} von {total} Treffer</div>",
+            f"Resultate {start + 1}–{end} von {total}</div>",
             unsafe_allow_html=True,
         )
-        for _, r in f_df.iloc[:st.session_state.results_limit].iterrows():
+
+        # Ergebnisse der aktuellen Seite
+        for _, r in f_df.iloc[start:end].iterrows():
             with st.expander(str(r['Adresse'])):
                 st.markdown(
                     generiere_besitz_text(r['Eigentumsverhältnis'], r['Grundstücksnummer(n)']),
@@ -605,10 +612,24 @@ with t1:
                 c2.markdown(f"<div class='label-text'>Eigentum</div>{eigentuem_clean}", unsafe_allow_html=True)
                 c3.markdown(f"<div class='label-text'>Fläche</div>{r['Fläche(n)']}", unsafe_allow_html=True)
 
-        if len(f_df) > st.session_state.results_limit:
-            if st.button("Weitere laden"):
-                st.session_state.results_limit += 30
-                st.rerun()
+        # Pagination-Navigation
+        if total_pages > 1:
+            st.markdown("<div style='height:0.5rem'></div>", unsafe_allow_html=True)
+            cols = st.columns([1, 2, 1])
+            with cols[0]:
+                if st.button("← Vorherige", disabled=(page == 1), use_container_width=True):
+                    st.session_state.page = page - 1
+                    st.rerun()
+            with cols[1]:
+                st.markdown(
+                    f"<div style='text-align:center; padding-top:0.4rem; "
+                    f"font-size:0.9rem; color:#555;'>Seite {page} von {total_pages}</div>",
+                    unsafe_allow_html=True,
+                )
+            with cols[2]:
+                if st.button("Nächste →", disabled=(page == total_pages), use_container_width=True):
+                    st.session_state.page = page + 1
+                    st.rerun()
 
 # ── Tab 2: Karte ─────────────────────────────────────────────────────────────
 @st.fragment
