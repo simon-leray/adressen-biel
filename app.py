@@ -207,7 +207,7 @@ div[data-testid="stExpander"] summary {
     border-bottom: 2px solid #111111 !important;
 }
 .stRadio [data-testid="stWidgetLabel"] { display: none; }
-[data-testid="stRadio"] { margin-bottom: 0 !important; }
+[data-testid="stRadio"] { margin-bottom: -0.75rem !important; }
 /* Segmented Control */
 div[role="radiogroup"] {
     display: inline-flex !important;
