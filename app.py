@@ -14,30 +14,10 @@ from streamlit_lottie import st_lottie
 
 # ── 1. KONSTANTEN ────────────────────────────────────────────────────────────
 
-EXCEL_FILE   = "Biel_Adressregister_Final.xlsx"
+EXCEL_FILE  = "Biel_Adressregister_Final.xlsx"
 GEOJSON_FILE = "Eigentum.md"
-LOTTIE_FILE  = "ajour-logo.json"
-GWR_FOLDER   = "GWR_Data"
-SHEET_NAME   = "Adress-Verzeichnis"
-
-# GWR: Gebäudekategorie-Labels kürzen
-GKAT_KURZ = {
-    "Gebäude mit ausschliesslicher Wohnnutzung":          "Wohngebäude",
-    "Andere Wohngebäude (Wohngebäude mit Nebennutzung)":  "Wohngebäude (Nebennutzung)",
-    "Gebäude mit teilweiser Wohnnutzung":                 "Mischnutzung",
-    "Gebäude ohne Wohnnutzung":                           "Gewerbe / Industrie",
-    "Sonderbau":                                          "Sonderbau",
-    "Provisorische Unterkunft":                           "Provisorische Unterkunft",
-}
-
-# GWR: Energieträger-Kategorisierung
-_FOSSIL     = {"Gas", "Heizöl"}
-_ERNEUERBAR = {"Luft", "Erdwärmesonde", "Erdwärme (generisch)", "Erdregister",
-               "Wasser (Grundwasser, Oberflächenwasser, Abwasser)",
-               "Sonne (thermisch)", "Holz (generisch)", "Holz (Pellets)",
-               "Holz (Stückholz)", "Holz (Schnitzel)", "Abwärme (innerhalb des Gebäudes)",
-               "Elektrizität"}
-_FERNWAERME = {"Fernwärme (generisch)", "Fernwärme (Hochtemperatur)", "Fernwärme (Niedertemperatur)"}
+LOTTIE_FILE = "ajour-logo.json"
+SHEET_NAME  = "Adress-Verzeichnis"
 
 # Eigentümer-Codes → (Dativ, Nominativ)
 EIGENTUEMER = {
@@ -297,47 +277,9 @@ def normalize(s: str) -> str:
             .replace('ae', 'a').replace('oe', 'o').replace('ue', 'u'))
 
 def natural_sort_key(s: str) -> str:
-    """Zahlen im String auf 6 Stellen nullen-auffüllen → korrekte Sortierung."""
+    """Zahlen im String auf 6 Stellen nullen-auffüllen → korrekte Sortierung.
+    'Strasse 9' < 'Strasse 10' statt 'Strasse 10' < 'Strasse 9'."""
     return re.sub(r'(\d+)', lambda m: m.group(1).zfill(6), str(s).lower())
-
-def _part_to_key(part: str) -> str:
-    """Hilfsfunktion: einen Adressteil in einen GWR-Matching-Key umwandeln."""
-    part = part.strip()
-    tokens = part.rsplit(' ', 1)
-    if len(tokens) == 2:
-        return normalize(tokens[0]) + '_' + tokens[1].strip().lower()
-    return normalize(part) + '_'
-
-def adresse_keys(adresse: str) -> list[str]:
-    """Gibt alle möglichen Matching-Keys zurück (DE- und FR-Teil bei zweisprachigen Adressen)."""
-    parts = str(adresse).split(' / ')
-    return [_part_to_key(p) for p in parts]
-
-def format_baujahr(gbauj, gbaup_label: str) -> str:
-    """Gibt Baujahr als lesbaren String zurück."""
-    if pd.notna(gbauj) and gbauj > 0:
-        return str(int(gbauj))
-    label = str(gbaup_label)
-    label = re.sub(r'Periode von (\d+) bis (\d+)', r'\1–\2', label)
-    label = re.sub(r'Periode vor (\d+)', r'vor \1', label)
-    label = re.sub(r'Periode nach (\d+)', r'nach \1', label)
-    label = label.replace('Periode ', '')
-    return label if label and label != 'nan' else '–'
-
-def energie_icon(genh: str) -> str:
-    """Gibt Emoji + Label für einen Energieträger zurück."""
-    if genh in _FOSSIL:     return '🔥 ' + genh
-    if genh in _FERNWAERME: return '🏭 ' + genh
-    if genh in _ERNEUERBAR: return '🌿 ' + genh
-    if genh in ('Keine', 'Unbestimmt', '', 'nan'): return '–'
-    return '❓ ' + genh
-
-def energie_typ(genh: str) -> str:
-    """Kategorisiert einen Energieträger als fossil/erneuerbar/fernwärme/unbekannt."""
-    if genh in _FOSSIL:     return 'fossil'
-    if genh in _FERNWAERME: return 'fernwärme'
-    if genh in _ERNEUERBAR: return 'erneuerbar'
-    return 'unbekannt'
 
 # Französische Strassentypen stehen fast immer am Wortanfang
 _FR_PREFIX = re.compile(
@@ -473,119 +415,6 @@ def load_data() -> pd.DataFrame | None:
     return df
 
 @st.cache_data
-def load_gwr() -> pd.DataFrame | None:
-    """Lädt GWR-Daten aus Split-CSV-Dateien; eine Zeile pro Adresseingang."""
-    geb_path  = os.path.join(GWR_FOLDER, "gebaeude_batiment_edificio.csv")
-    eing_path = os.path.join(GWR_FOLDER, "eingang_entree_entrata.csv")
-    if not os.path.exists(geb_path) or not os.path.exists(eing_path):
-        return None
-
-    # Code → Label Lookups (aus kodes_codes_codici.csv, hardcodiert)
-    _GKAT_CODE = {
-        1010: "Provisorische Unterkunft",
-        1020: "Gebäude mit ausschliesslicher Wohnnutzung",
-        1030: "Andere Wohngebäude (Wohngebäude mit Nebennutzung)",
-        1040: "Gebäude mit teilweiser Wohnnutzung",
-        1060: "Gebäude ohne Wohnnutzung",
-        1080: "Sonderbau",
-    }
-    _GBAUP_CODE = {
-        8011: "Periode vor 1919",
-        8012: "Periode von 1919 bis 1945",
-        8013: "Periode von 1946 bis 1960",
-        8014: "Periode von 1961 bis 1970",
-        8015: "Periode von 1971 bis 1980",
-        8016: "Periode von 1981 bis 1985",
-        8017: "Periode von 1986 bis 1990",
-        8018: "Periode von 1991 bis 1995",
-        8019: "Periode von 1996 bis 2000",
-        8020: "Periode von 2001 bis 2005",
-        8021: "Periode von 2006 bis 2010",
-        8022: "Periode von 2011 bis 2015",
-        8023: "Periode nach 2015",
-    }
-    _GENH_CODE = {
-        7500: "Keine",
-        7501: "Luft",
-        7510: "Erdwärme (generisch)",
-        7511: "Erdwärmesonde",
-        7512: "Erdregister",
-        7513: "Wasser (Grundwasser, Oberflächenwasser, Abwasser)",
-        7520: "Gas",
-        7530: "Heizöl",
-        7540: "Holz (generisch)",
-        7541: "Holz (Stückholz)",
-        7542: "Holz (Pellets)",
-        7543: "Holz (Schnitzel)",
-        7550: "Abwärme (innerhalb des Gebäudes)",
-        7560: "Elektrizität",
-        7570: "Sonne (thermisch)",
-        7580: "Fernwärme (generisch)",
-        7581: "Fernwärme (Hochtemperatur)",
-        7582: "Fernwärme (Niedertemperatur)",
-        7598: "Unbestimmt",
-        7599: "Andere",
-    }
-
-    # 1. Gebäudedaten (eine Zeile pro EGID, nur benötigte Spalten)
-    geb = pd.read_csv(
-        geb_path, sep='\t',
-        usecols=['EGID', 'GKAT', 'GBAUP', 'GBAUJ', 'GASTW', 'GANZWHG', 'GENH1', 'GENW1'],
-    )
-    geb['GKAT_LABEL']  = geb['GKAT'].map(_GKAT_CODE).fillna('')
-    geb['GBAUP_LABEL'] = geb['GBAUP'].map(_GBAUP_CODE).fillna('')
-    geb['GENH1_LABEL'] = geb['GENH1'].map(_GENH_CODE).fillna('Unbestimmt')
-    geb['GENW1_LABEL'] = geb['GENW1'].map(_GENH_CODE).fillna('Unbestimmt')
-    geb['WOHN_ANZAHL'] = geb['GANZWHG'].fillna(0).astype(int)
-
-    # 2. Eingänge – nur deutsche Strassennamen (STRSP = 9901)
-    eingang = pd.read_csv(
-        eing_path, sep='\t',
-        usecols=['EGID', 'STRNAME', 'DEINR', 'STRSP'],
-    )
-    eingang = eingang[eingang['STRSP'] == 9901].drop(columns='STRSP')
-
-    # 3. Join: Eingänge mit Gebäudeinfos verknüpfen (eine Zeile pro Adresseingang)
-    merged = eingang.merge(
-        geb[['EGID', 'GKAT_LABEL', 'GBAUP_LABEL', 'GBAUJ', 'GASTW',
-             'GENH1_LABEL', 'GENW1_LABEL', 'WOHN_ANZAHL']],
-        on='EGID', how='left'
-    )
-
-    # 4. Berechnete Spalten
-    merged['Baujahr']   = merged.apply(
-        lambda r: format_baujahr(r['GBAUJ'], r['GBAUP_LABEL']), axis=1
-    )
-    merged['Kategorie'] = merged['GKAT_LABEL'].map(GKAT_KURZ).fillna(merged['GKAT_LABEL'])
-    merged['_key']      = (merged['STRNAME'].apply(normalize) + '_' +
-                           merged['DEINR'].astype(str).str.strip().str.lower())
-    return merged
-
-@st.cache_data
-def prepare_energie_data(df: pd.DataFrame, gwr_df: pd.DataFrame) -> pd.DataFrame:
-    """Verknüpft Adressregister (nur Stadtliegenschaften) mit GWR.
-    Probiert bei zweisprachigen Adressen beide Teile als Matching-Key."""
-    stadt = df[df['Filter_Kategorie'] != 'Andere'].copy()
-    gwr_keys = gwr_df[['_key', 'Baujahr', 'Kategorie', 'GENH1_LABEL',
-                        'GENW1_LABEL', 'GASTW', 'WOHN_ANZAHL']].copy()
-
-    # Key für den ersten Adressteil (meistens Deutsch)
-    stadt['_key1'] = stadt['Adresse'].apply(lambda a: adresse_keys(a)[0])
-    # Key für den zweiten Adressteil (meistens Französisch bei umgekehrter Reihenfolge)
-    stadt['_key2'] = stadt['Adresse'].apply(
-        lambda a: adresse_keys(a)[1] if len(adresse_keys(a)) > 1 else adresse_keys(a)[0]
-    )
-
-    # Erster Versuch: Key1
-    m1 = stadt.merge(gwr_keys, left_on='_key1', right_on='_key', how='inner')
-    # Zweiter Versuch: Key2 für noch nicht gematchte Adressen
-    matched = set(m1['Adresse'])
-    rest = stadt[~stadt['Adresse'].isin(matched)]
-    m2 = rest.merge(gwr_keys, left_on='_key2', right_on='_key', how='inner')
-
-    return pd.concat([m1, m2], ignore_index=True)
-
-@st.cache_data
 def load_lottie(path: str) -> dict | None:
     if not os.path.exists(path):
         return None
@@ -647,12 +476,7 @@ if lottie_data:
 st.markdown("<div class='main-title'>Wie viel Stadt besitzt die Stadt?</div>", unsafe_allow_html=True)
 st.markdown("<div class='title-subtext'>Suchportal für den Immobilienbesitz der Stadt Biel</div>", unsafe_allow_html=True)
 
-gwr_df = load_gwr()
-
-if "energie_auth" not in st.session_state:
-    st.session_state.energie_auth = False
-
-t1, t2, t3, t4 = st.tabs(["🔍 Suche", "Interaktive Karte", "🧪 Experimentell", "ℹ️ Methodik"])
+t1, t2, t3 = st.tabs(["🔍 Suche", "Interaktive Karte", "ℹ️ Methodik"])
 
 # ── Tab 1: Suche ─────────────────────────────────────────────────────────────
 
@@ -790,7 +614,6 @@ with t1:
                 c2.markdown(f"<div class='label-text'>Eigentum</div>{eigentuem_clean}", unsafe_allow_html=True)
                 c3.markdown(f"<div class='label-text'>Fläche</div>{r['Fläche(n)']}", unsafe_allow_html=True)
 
-
         # Pagination-Navigation
         if total_pages > 1:
             st.markdown("<div style='height:0.5rem'></div>", unsafe_allow_html=True)
@@ -864,113 +687,8 @@ def render_karte():
 with t2:
     render_karte()
 
-# ── Tab 3: Experimentell (passwortgeschützt) ──────────────────────────────────
+# ── Tab 3: Methodik ───────────────────────────────────────────────────────────
 with t3:
-    if not st.session_state.energie_auth:
-        pw = st.text_input("Passwort", type="password", key="energie_pw")
-        if pw == "1312":
-            st.session_state.energie_auth = True
-            st.rerun()
-        elif pw:
-            st.error("Falsches Passwort.")
-    else:
-        if gwr_df is None:
-            st.warning("GWR-Daten nicht gefunden (Ordner GWR_Data/ fehlt).")
-        else:
-            # Gecachter Merge – läuft nur einmal
-            merged = prepare_energie_data(df, gwr_df)
-
-            total_geb = len(merged)
-            n_fossil  = merged['GENH1_LABEL'].isin(_FOSSIL).sum()
-            n_erneu   = merged['GENH1_LABEL'].isin(_ERNEUERBAR).sum()
-            n_fern    = merged['GENH1_LABEL'].isin(_FERNWAERME).sum()
-
-            pct = lambda n: f"{n*100//total_geb}%" if total_geb else "–"
-
-            # ── Metriken als HTML-Karten (kein Abschneiden) ──────────────
-            st.markdown(f"""
-            <div style='display:flex; gap:0.75rem; flex-wrap:wrap; margin-bottom:1.25rem;'>
-              <div style='flex:1; min-width:120px; background:#f5f5f5; border-radius:10px; padding:0.9rem 1rem;'>
-                <div style='font-size:0.75rem; color:#666; margin-bottom:0.25rem;'>Gebäude erfasst</div>
-                <div style='font-size:1.8rem; font-weight:700; line-height:1.1;'>{total_geb}</div>
-              </div>
-              <div style='flex:1; min-width:120px; background:#f5f5f5; border-radius:10px; padding:0.9rem 1rem;'>
-                <div style='font-size:0.75rem; color:#666; margin-bottom:0.25rem;'>🔥 Fossil (Gas/Öl)</div>
-                <div style='font-size:1.8rem; font-weight:700; line-height:1.1;'>{n_fossil}</div>
-                <div style='font-size:0.85rem; color:#888;'>{pct(n_fossil)}</div>
-              </div>
-              <div style='flex:1; min-width:120px; background:#f5f5f5; border-radius:10px; padding:0.9rem 1rem;'>
-                <div style='font-size:0.75rem; color:#666; margin-bottom:0.25rem;'>🌿 Erneuerbar</div>
-                <div style='font-size:1.8rem; font-weight:700; line-height:1.1;'>{n_erneu}</div>
-                <div style='font-size:0.85rem; color:#888;'>{pct(n_erneu)}</div>
-              </div>
-              <div style='flex:1; min-width:120px; background:#f5f5f5; border-radius:10px; padding:0.9rem 1rem;'>
-                <div style='font-size:0.75rem; color:#666; margin-bottom:0.25rem;'>🏭 Fernwärme</div>
-                <div style='font-size:1.8rem; font-weight:700; line-height:1.1;'>{n_fern}</div>
-                <div style='font-size:0.85rem; color:#888;'>{pct(n_fern)}</div>
-              </div>
-            </div>
-            """, unsafe_allow_html=True)
-
-            # ── Filter-Radio ──────────────────────────────────────────────
-            e_filter = st.radio(
-                "Anzeigen",
-                ["Alle", "🔥 Fossil", "🌿 Erneuerbar", "🏭 Fernwärme", "❓ Unbekannt"],
-                horizontal=True, label_visibility="collapsed", key="e_filter",
-            )
-
-            e_df = merged.copy()
-            if e_filter == "🔥 Fossil":
-                e_df = e_df[e_df['GENH1_LABEL'].isin(_FOSSIL)]
-            elif e_filter == "🌿 Erneuerbar":
-                e_df = e_df[e_df['GENH1_LABEL'].isin(_ERNEUERBAR)]
-            elif e_filter == "🏭 Fernwärme":
-                e_df = e_df[e_df['GENH1_LABEL'].isin(_FERNWAERME)]
-            elif e_filter == "❓ Unbekannt":
-                e_df = e_df[~e_df['GENH1_LABEL'].isin(_FOSSIL | _ERNEUERBAR | _FERNWAERME)]
-
-            # ── Suchfeld ──────────────────────────────────────────────────
-            e_search = st.text_input(
-                "Adresse suchen",
-                placeholder="Strasse oder Hausnummer...",
-                label_visibility="collapsed",
-                key="e_search",
-            )
-            if e_search:
-                norm_s = normalize(e_search)
-                e_df = e_df[e_df['Adresse'].apply(normalize).str.contains(
-                    re.escape(norm_s), case=False, na=False
-                )]
-
-            # Sortierung: fossil zuerst, dann älteste Gebäude
-            e_df = e_df.sort_values(
-                ['GENH1_LABEL', 'Baujahr'],
-                key=lambda c: c.map(lambda v: (
-                    energie_typ(str(v)) if c.name == 'GENH1_LABEL'
-                    else natural_sort_key(str(v))
-                ))
-            )
-
-            st.markdown(
-                f"<div style='margin-bottom:1rem;opacity:0.6;font-size:0.8rem;'>"
-                f"{len(e_df)} Liegenschaften</div>",
-                unsafe_allow_html=True,
-            )
-
-            # ── Tabelle ───────────────────────────────────────────────────
-            display = e_df[['Adresse','Filter_Kategorie','Baujahr','GENH1_LABEL','GENW1_LABEL']].copy()
-            display.columns = ['Adresse','Eigentum','Baujahr','Heizung','Warmwasser']
-            display['Heizung']    = display['Heizung'].apply(energie_icon)
-            display['Warmwasser'] = display['Warmwasser'].apply(energie_icon)
-            display['Eigentum']   = display['Eigentum'].map({
-                'Vollbesitz':    'Vollbesitz',
-                'Bodenbesitz':   'Bodenbesitz',
-                'Gebäudebesitz': 'Gebäudebesitz',
-            })
-            st.dataframe(display.reset_index(drop=True), use_container_width=True, hide_index=True)
-
-# ── Tab 4: Methodik ───────────────────────────────────────────────────────────
-with t4:
     st.markdown(
         f"<div class='methodology-box'>{methodik_als_html(METHODIK_TEXT)}</div>",
         unsafe_allow_html=True,
