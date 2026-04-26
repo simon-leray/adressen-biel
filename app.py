@@ -207,6 +207,7 @@ div[data-testid="stExpander"] summary {
     border-bottom: 2px solid #111111 !important;
 }
 .stRadio [data-testid="stWidgetLabel"] { display: none; }
+[data-testid="stRadio"] { margin-bottom: 0 !important; }
 /* Segmented Control */
 div[role="radiogroup"] {
     display: inline-flex !important;
@@ -214,7 +215,7 @@ div[role="radiogroup"] {
     flex-wrap: nowrap !important;
     gap: 0 !important;
     margin-top: 0.5rem;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0 !important;
     background-color: #EBEBEB !important;
     border-radius: 10px !important;
     padding: 3px !important;
@@ -576,12 +577,12 @@ with t1:
         } catch(e) {}
     })();
     </script>
-    """, height=1)
+    """, height=0)
 
     f_mode = st.session_state.filter_mode
     hinweis_key = next((k for k in FILTER_HINWEISE if k in f_mode), "Alle")
     st.markdown(
-        f"<p style='color:#888888; font-size:0.85rem; margin-top:-10px; margin-bottom:20px;'>"
+        f"<p style='color:#888888; font-size:0.85rem; margin-top:0.4rem; margin-bottom:20px;'>"
         f"{FILTER_HINWEISE[hinweis_key]}</p>",
         unsafe_allow_html=True,
     )
