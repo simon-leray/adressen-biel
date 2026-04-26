@@ -26,8 +26,8 @@ EIGENTUEMER = {
         "die Stadt Biel",
     ),
     "02": (
-        "einer öffentlichen Institution (Bund, Kanton, SBB oder Ähnliche)",
-        "eine öffentliche Institution (Bund, Kanton, SBB oder Ähnliche)",
+        "einer öffentlich-rechtlichen Institution (z. B. Bund, Kanton, SBB, Landeskirchen)",
+        "eine öffentlich-rechtliche Institution (z. B. Bund, Kanton, SBB, Landeskirchen)",
     ),
     "03": (
         "einer Privatperson oder privaten Firma",
