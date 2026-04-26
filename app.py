@@ -206,6 +206,13 @@ div[data-testid="stExpander"] summary {
     color: #111111 !important;
     border-bottom: 2px solid #111111 !important;
 }
+/* Methodik-Tab rechtsbündig */
+[role="tablist"] {
+    display: flex !important;
+}
+[role="tablist"] button:last-child {
+    margin-left: auto !important;
+}
 .stRadio [data-testid="stWidgetLabel"] { display: none; }
 div[role="radiogroup"] {
     display: flex !important;
