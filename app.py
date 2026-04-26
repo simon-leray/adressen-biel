@@ -104,23 +104,41 @@ footer { display: none !important; }
     padding-bottom: 4rem;
     max-width: 900px;
 }
-/* Suchfeld */
+/* Suchfeld – Wrapper-Overflow freigeben damit box-shadow nicht abgeschnitten wird */
 .stTextInput,
 .stTextInput > div,
 .stTextInput > div > div {
     overflow: visible !important;
 }
-.stTextInput > div > div > input {
-    border-radius: 12px;
-    padding: 1.2rem 1.5rem;
-    font-size: 1.2rem;
+/* BaseWeb-Container komplett transparent schalten */
+[data-baseweb="input"],
+[data-baseweb="base-input"] {
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+    background: transparent !important;
+}
+[data-baseweb="input"]:focus-within,
+[data-baseweb="base-input"]:focus-within,
+.stTextInput > div > div:focus-within {
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+}
+/* Styling nur auf dem <input> selbst */
+.stTextInput input {
+    border-radius: 12px !important;
+    padding: 1.2rem 1.5rem !important;
+    font-size: 1.2rem !important;
     background-color: #FFFFFF !important;
     border: 1px solid #EAEAEA !important;
     color: #111111 !important;
-    box-shadow: 0 8px 30px rgba(0,0,0,0.06);
-    margin-bottom: 8px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.06) !important;
+    margin-bottom: 8px !important;
+    outline: none !important;
 }
-.stTextInput > div > div > input:focus {
+.stTextInput input:focus,
+.stTextInput input:focus-visible {
     border-color: #AAAAAA !important;
     box-shadow: 0 8px 30px rgba(0,0,0,0.06) !important;
     outline: none !important;
