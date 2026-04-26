@@ -114,6 +114,7 @@ st.markdown("""
     box-shadow: 0 8px 30px rgba(0,0,0,0.06) !important;
     outline: none !important;
 }
+[data-testid="InputInstructions"] { display: none !important; }
 div[data-testid="stExpander"] {
     border-radius: 12px;
     margin-bottom: 1rem;
