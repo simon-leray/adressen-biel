@@ -214,7 +214,7 @@ div[role="radiogroup"] {
     flex-wrap: nowrap !important;
     gap: 0 !important;
     margin-top: 0.5rem;
-    margin-bottom: 1.5rem;
+    margin-bottom: 0.5rem;
     background-color: #EBEBEB !important;
     border-radius: 10px !important;
     padding: 3px !important;
