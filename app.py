@@ -50,16 +50,16 @@ KATEGORIE_NAMEN = {
 }
 
 FILTER_OPTIONEN = [
-    "Alle Adressen",
-    "Vollbesitz (Gebäude & Land)",
-    "Bodenbesitz (Baurecht abgegeben)",
-    "Gebäudebesitz (Baurecht erhalten)",
+    "Alle",
+    "Vollbesitz",
+    "Bodenbesitz",
+    "Gebäudebesitz",
 ]
 FILTER_HINWEISE = {
-    "Alle Adressen":   "💡 Zeigt das gesamte Register. <strong>Bitte Suchbegriff eingeben.</strong>",
-    "Vollbesitz":      "💡 Adressen, bei denen Boden und Gebäude vollständig der Stadt Biel gehören.",
-    "Bodenbesitz":     "💡 Die Stadt besitzt das Land, hat es aber an Dritte im Baurecht abgegeben.",
-    "Gebäudebesitz":   "💡 Der Boden gehört jemand anderem, aber die Stadt besitzt darauf ein Gebäude im Baurecht.",
+    "Alle":          "💡 Zeigt das gesamte Register. <strong>Bitte Suchbegriff eingeben.</strong>",
+    "Vollbesitz":    "💡 Adressen, bei denen Boden und Gebäude vollständig der Stadt Biel gehören.",
+    "Bodenbesitz":   "💡 Die Stadt besitzt das Land, hat es aber an Dritte im Baurecht abgegeben.",
+    "Gebäudebesitz": "💡 Der Boden gehört jemand anderem, aber die Stadt besitzt darauf ein Gebäude im Baurecht.",
 }
 
 # ── 2. SEITENKONFIGURATION ───────────────────────────────────────────────────
@@ -207,28 +207,34 @@ div[data-testid="stExpander"] summary {
     border-bottom: 2px solid #111111 !important;
 }
 .stRadio [data-testid="stWidgetLabel"] { display: none; }
+/* Segmented Control */
 div[role="radiogroup"] {
-    display: flex !important;
+    display: inline-flex !important;
     flex-direction: row !important;
-    flex-wrap: wrap !important;
-    gap: 8px !important;
+    flex-wrap: nowrap !important;
+    gap: 0 !important;
     margin-top: 0.5rem;
     margin-bottom: 1.5rem;
+    background-color: #EBEBEB !important;
+    border-radius: 10px !important;
+    padding: 3px !important;
 }
 div[role="radiogroup"] > label {
-    background-color: #FFFFFF !important;
-    border: 1px solid #EAEAEA !important;
-    padding: 8px 16px !important;
-    border-radius: 30px !important;
+    background-color: transparent !important;
+    border: none !important;
+    padding: 7px 18px !important;
+    border-radius: 8px !important;
     cursor: pointer;
+    white-space: nowrap !important;
+    transition: background 0.15s ease;
 }
-/* Radio-Kreis ausblenden – der schwarze Button reicht als Indikator */
 div[role="radiogroup"] > label > div:first-child { display: none !important; }
 div[role="radiogroup"] > label:has(input:checked) {
-    background-color: #111111 !important;
-    border-color: #111111 !important;
+    background-color: #FFFFFF !important;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.12) !important;
 }
-div[role="radiogroup"] > label:has(input:checked) p { color: #FFFFFF !important; }
+div[role="radiogroup"] > label:has(input:checked) p { color: #111111 !important; }
+div[role="radiogroup"] > label p { color: #555555 !important; font-size: 0.9rem !important; }
 .legend-box {
     padding: 15px; border-radius: 12px; background-color: #FFFFFF;
     border: 1px solid #EAEAEA; margin-bottom: 15px;
@@ -573,7 +579,7 @@ with t1:
     """, height=1)
 
     f_mode = st.session_state.filter_mode
-    hinweis_key = next((k for k in FILTER_HINWEISE if k in f_mode), "Alle Adressen")
+    hinweis_key = next((k for k in FILTER_HINWEISE if k in f_mode), "Alle")
     st.markdown(
         f"<p style='color:#888888; font-size:0.85rem; margin-top:-10px; margin-bottom:20px;'>"
         f"{FILTER_HINWEISE[hinweis_key]}</p>",
@@ -599,7 +605,7 @@ with t1:
         )]
     f_df = f_df.sort_values('Adresse', key=lambda col: col.map(natural_sort_key))
 
-    if f_mode == "Alle Adressen" and not search:
+    if f_mode == "Alle" and not search:
         st.info("Bitte Adresse eingeben oder Filter wählen.")
     elif f_df.empty:
         st.info("Keine Treffer.")
