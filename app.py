@@ -82,10 +82,13 @@ st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
-#MainMenu, footer, header { visibility: hidden; }
+#MainMenu { display: none !important; }
+footer { display: none !important; }
+header { display: none !important; }
 [data-testid="stToolbar"] { display: none !important; }
 [data-testid="stStatusWidget"] { display: none !important; }
 [data-testid="stDeployButton"] { display: none !important; }
+[data-testid="stDecoration"] { display: none !important; }
 
 [data-testid="stAppViewContainer"] {
     font-family: 'Inter', sans-serif !important;
