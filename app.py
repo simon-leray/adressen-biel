@@ -628,7 +628,14 @@ st.markdown("<div class='title-subtext'>Suchportal für den Immobilienbesitz der
 
 gwr_df = load_gwr()
 
-t1, t2, t3, t4 = st.tabs(["🔍 Suche", "Interaktive Karte", "⚡ Energie", "ℹ️ Methodik"])
+# Energie-Tab nur anzeigen wenn ?energie=1 in der URL
+_show_energie = st.query_params.get("energie", "") == "1"
+
+if _show_energie:
+    t1, t2, t3, t4 = st.tabs(["🔍 Suche", "Interaktive Karte", "⚡ Energie", "ℹ️ Methodik"])
+else:
+    t1, t2, t4 = st.tabs(["🔍 Suche", "Interaktive Karte", "ℹ️ Methodik"])
+    t3 = None
 
 # ── Tab 1: Suche ─────────────────────────────────────────────────────────────
 
@@ -841,74 +848,102 @@ with t2:
     render_karte()
 
 # ── Tab 3: Energie ────────────────────────────────────────────────────────────
-with t3:
-    if gwr_df is None:
-        st.warning("GWR-Datei nicht gefunden. Bitte `GWR_Data_Biel.xlsx` im App-Verzeichnis ablegen.")
-    else:
-        st.markdown("<div style='margin-bottom:1.5rem;'>", unsafe_allow_html=True)
+if t3 is not None:
+    with t3:
+        if gwr_df is None:
+            st.warning("GWR-Daten nicht gefunden (Ordner GWR_Data/ fehlt).")
+        else:
+            # Gecachter Merge – läuft nur einmal
+            merged = prepare_energie_data(df, gwr_df)
 
-        # Gecachter Merge – läuft nur einmal
-        merged = prepare_energie_data(df, gwr_df)
+            total_geb = len(merged)
+            n_fossil  = merged['GENH1_LABEL'].isin(_FOSSIL).sum()
+            n_erneu   = merged['GENH1_LABEL'].isin(_ERNEUERBAR).sum()
+            n_fern    = merged['GENH1_LABEL'].isin(_FERNWAERME).sum()
 
-        total_geb   = len(merged)
-        n_fossil    = merged['GENH1_LABEL'].isin(_FOSSIL).sum()
-        n_erneu     = merged['GENH1_LABEL'].isin(_ERNEUERBAR).sum()
-        n_fern      = merged['GENH1_LABEL'].isin(_FERNWAERME).sum()
+            pct = lambda n: f"{n*100//total_geb}%" if total_geb else "–"
 
-        # ── Metriken ─────────────────────────────────────────────────────
-        m1, m2, m3, m4 = st.columns(4)
-        m1.metric("Gebäude erfasst", total_geb)
-        m2.metric("🔥 Fossil (Gas/Öl)", f"{n_fossil} ({n_fossil*100//total_geb}%)")
-        m3.metric("🌿 Erneuerbar", f"{n_erneu} ({n_erneu*100//total_geb}%)")
-        m4.metric("🏭 Fernwärme", f"{n_fern} ({n_fern*100//total_geb}%)")
+            # ── Metriken als HTML-Karten (kein Abschneiden) ──────────────
+            st.markdown(f"""
+            <div style='display:flex; gap:0.75rem; flex-wrap:wrap; margin-bottom:1.25rem;'>
+              <div style='flex:1; min-width:120px; background:#f5f5f5; border-radius:10px; padding:0.9rem 1rem;'>
+                <div style='font-size:0.75rem; color:#666; margin-bottom:0.25rem;'>Gebäude erfasst</div>
+                <div style='font-size:1.8rem; font-weight:700; line-height:1.1;'>{total_geb}</div>
+              </div>
+              <div style='flex:1; min-width:120px; background:#f5f5f5; border-radius:10px; padding:0.9rem 1rem;'>
+                <div style='font-size:0.75rem; color:#666; margin-bottom:0.25rem;'>🔥 Fossil (Gas/Öl)</div>
+                <div style='font-size:1.8rem; font-weight:700; line-height:1.1;'>{n_fossil}</div>
+                <div style='font-size:0.85rem; color:#888;'>{pct(n_fossil)}</div>
+              </div>
+              <div style='flex:1; min-width:120px; background:#f5f5f5; border-radius:10px; padding:0.9rem 1rem;'>
+                <div style='font-size:0.75rem; color:#666; margin-bottom:0.25rem;'>🌿 Erneuerbar</div>
+                <div style='font-size:1.8rem; font-weight:700; line-height:1.1;'>{n_erneu}</div>
+                <div style='font-size:0.85rem; color:#888;'>{pct(n_erneu)}</div>
+              </div>
+              <div style='flex:1; min-width:120px; background:#f5f5f5; border-radius:10px; padding:0.9rem 1rem;'>
+                <div style='font-size:0.75rem; color:#666; margin-bottom:0.25rem;'>🏭 Fernwärme</div>
+                <div style='font-size:1.8rem; font-weight:700; line-height:1.1;'>{n_fern}</div>
+                <div style='font-size:0.85rem; color:#888;'>{pct(n_fern)}</div>
+              </div>
+            </div>
+            """, unsafe_allow_html=True)
 
-        st.markdown("<div style='height:1rem'></div>", unsafe_allow_html=True)
+            # ── Filter-Radio ──────────────────────────────────────────────
+            e_filter = st.radio(
+                "Anzeigen",
+                ["Alle", "🔥 Fossil", "🌿 Erneuerbar", "🏭 Fernwärme", "❓ Unbekannt"],
+                horizontal=True, label_visibility="collapsed", key="e_filter",
+            )
 
-        # ── Filter ───────────────────────────────────────────────────────
-        e_filter = st.radio(
-            "Anzeigen",
-            ["Alle", "🔥 Fossil", "🌿 Erneuerbar", "🏭 Fernwärme", "❓ Unbekannt"],
-            horizontal=True, label_visibility="collapsed", key="e_filter",
-        )
+            e_df = merged.copy()
+            if e_filter == "🔥 Fossil":
+                e_df = e_df[e_df['GENH1_LABEL'].isin(_FOSSIL)]
+            elif e_filter == "🌿 Erneuerbar":
+                e_df = e_df[e_df['GENH1_LABEL'].isin(_ERNEUERBAR)]
+            elif e_filter == "🏭 Fernwärme":
+                e_df = e_df[e_df['GENH1_LABEL'].isin(_FERNWAERME)]
+            elif e_filter == "❓ Unbekannt":
+                e_df = e_df[~e_df['GENH1_LABEL'].isin(_FOSSIL | _ERNEUERBAR | _FERNWAERME)]
 
-        e_df = merged.copy()
-        if e_filter == "🔥 Fossil":
-            e_df = e_df[e_df['GENH1_LABEL'].isin(_FOSSIL)]
-        elif e_filter == "🌿 Erneuerbar":
-            e_df = e_df[e_df['GENH1_LABEL'].isin(_ERNEUERBAR)]
-        elif e_filter == "🏭 Fernwärme":
-            e_df = e_df[e_df['GENH1_LABEL'].isin(_FERNWAERME)]
-        elif e_filter == "❓ Unbekannt":
-            e_df = e_df[~e_df['GENH1_LABEL'].isin(_FOSSIL | _ERNEUERBAR | _FERNWAERME)]
+            # ── Suchfeld ──────────────────────────────────────────────────
+            e_search = st.text_input(
+                "Adresse suchen",
+                placeholder="Strasse oder Hausnummer...",
+                label_visibility="collapsed",
+                key="e_search",
+            )
+            if e_search:
+                norm_s = normalize(e_search)
+                e_df = e_df[e_df['Adresse'].apply(normalize).str.contains(
+                    re.escape(norm_s), case=False, na=False
+                )]
 
-        # Sortierung: fossil zuerst, dann älteste Gebäude
-        e_df = e_df.sort_values(
-            ['GENH1_LABEL', 'Baujahr'],
-            key=lambda c: c.map(lambda v: (
-                energie_typ(str(v)) if c.name == 'GENH1_LABEL'
-                else natural_sort_key(str(v))
-            ))
-        )
+            # Sortierung: fossil zuerst, dann älteste Gebäude
+            e_df = e_df.sort_values(
+                ['GENH1_LABEL', 'Baujahr'],
+                key=lambda c: c.map(lambda v: (
+                    energie_typ(str(v)) if c.name == 'GENH1_LABEL'
+                    else natural_sort_key(str(v))
+                ))
+            )
 
-        st.markdown(
-            f"<div style='margin-bottom:1rem;opacity:0.6;font-size:0.8rem;'>"
-            f"{len(e_df)} Liegenschaften</div>",
-            unsafe_allow_html=True,
-        )
+            st.markdown(
+                f"<div style='margin-bottom:1rem;opacity:0.6;font-size:0.8rem;'>"
+                f"{len(e_df)} Liegenschaften</div>",
+                unsafe_allow_html=True,
+            )
 
-        # ── Tabelle ──────────────────────────────────────────────────────
-        display = e_df[['Adresse','Filter_Kategorie','Baujahr','GENH1_LABEL','GENW1_LABEL']].copy()
-        display.columns = ['Adresse','Eigentum','Baujahr','Heizung','Warmwasser']
-        display['Heizung']    = display['Heizung'].apply(energie_icon)
-        display['Warmwasser'] = display['Warmwasser'].apply(energie_icon)
-        display['Eigentum']   = display['Eigentum'].map({
-            'Vollbesitz':    'Vollbesitz',
-            'Bodenbesitz':   'Bodenbesitz',
-            'Gebäudebesitz': 'Gebäudebesitz',
-        })
-        st.dataframe(display.reset_index(drop=True), use_container_width=True, hide_index=True)
-
-        st.markdown("</div>", unsafe_allow_html=True)
+            # ── Tabelle ───────────────────────────────────────────────────
+            display = e_df[['Adresse','Filter_Kategorie','Baujahr','GENH1_LABEL','GENW1_LABEL']].copy()
+            display.columns = ['Adresse','Eigentum','Baujahr','Heizung','Warmwasser']
+            display['Heizung']    = display['Heizung'].apply(energie_icon)
+            display['Warmwasser'] = display['Warmwasser'].apply(energie_icon)
+            display['Eigentum']   = display['Eigentum'].map({
+                'Vollbesitz':    'Vollbesitz',
+                'Bodenbesitz':   'Bodenbesitz',
+                'Gebäudebesitz': 'Gebäudebesitz',
+            })
+            st.dataframe(display.reset_index(drop=True), use_container_width=True, hide_index=True)
 
 # ── Tab 4: Methodik ───────────────────────────────────────────────────────────
 with t4:
