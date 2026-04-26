@@ -623,7 +623,13 @@ lottie_data = load_lottie(LOTTIE_FILE)
 if lottie_data:
     st_lottie(lottie_data, height=100, loop=True, quality="high", key="logo")
 
-st.markdown("<div class='main-title'>Wie viel Stadt besitzt die Stadt?</div>", unsafe_allow_html=True)
+_toggle_url = "" if _show_energie else "?energie=1"
+st.markdown(
+    f"<div class='main-title'>Wie "
+    f"<span onclick=\"window.parent.location.search='{_toggle_url}'\" style='cursor:default;'>viel</span>"
+    f" Stadt besitzt die Stadt?</div>",
+    unsafe_allow_html=True,
+)
 st.markdown("<div class='title-subtext'>Suchportal für den Immobilienbesitz der Stadt Biel</div>", unsafe_allow_html=True)
 
 gwr_df = load_gwr()
