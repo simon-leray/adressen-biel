@@ -571,11 +571,37 @@ with t1:
                 });
             } catch(e) {}
         }
+        function hideBadge() {
+            try {
+                var doc = window.parent.document;
+                var selectors = [
+                    '[data-testid="stToolbar"]',
+                    '[data-testid="stStatusWidget"]',
+                    '[data-testid="stDeployButton"]',
+                    '.stDeployButton',
+                    '[class*="viewerBadge"]',
+                    '[class*="badge"]'
+                ];
+                selectors.forEach(function(sel) {
+                    doc.querySelectorAll(sel).forEach(function(el) {
+                        el.style.setProperty('display', 'none', 'important');
+                    });
+                });
+                // Fixed-position elements in bottom-right corner
+                doc.querySelectorAll('body > div').forEach(function(el) {
+                    var s = window.parent.getComputedStyle(el);
+                    if (s.position === 'fixed' && s.bottom !== 'auto' && s.right !== 'auto') {
+                        el.style.setProperty('display', 'none', 'important');
+                    }
+                });
+            } catch(e) {}
+        }
         apply();
-        [100, 300, 700, 1500].forEach(function(t) { setTimeout(apply, t); });
+        hideBadge();
+        [100, 300, 700, 1500].forEach(function(t) { setTimeout(apply, t); setTimeout(hideBadge, t); });
         window.parent.addEventListener('resize', apply);
         try {
-            new MutationObserver(function() { setTimeout(apply, 60); })
+            new MutationObserver(function() { setTimeout(apply, 60); setTimeout(hideBadge, 60); })
                 .observe(window.parent.document.body, { childList: true, subtree: true });
         } catch(e) {}
     })();
