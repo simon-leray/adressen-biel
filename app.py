@@ -17,7 +17,7 @@ from streamlit_lottie import st_lottie
 EXCEL_FILE   = "Biel_Adressregister_Final.xlsx"
 GEOJSON_FILE = "Eigentum.md"
 LOTTIE_FILE  = "ajour-logo.json"
-GWR_FOLDER   = "371"
+GWR_FOLDER   = "GWR_Data"
 SHEET_NAME   = "Adress-Verzeichnis"
 
 # GWR: Gebäudekategorie-Labels kürzen
