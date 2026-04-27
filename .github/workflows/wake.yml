@@ -1,0 +1,25 @@
+name: Keep Streamlit App Awake
+
+on:
+  schedule:
+    - cron: "0 */4 * * *"   # alle 4 Stunden
+  workflow_dispatch:          # manuell auslösbar
+
+jobs:
+  wake:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v3
+
+      - name: Python einrichten
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Abhängigkeiten installieren
+        run: pip install selenium webdriver-manager
+
+      - name: App aufwecken
+        run: python keep_alive.py
