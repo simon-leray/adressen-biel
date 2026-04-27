@@ -316,15 +316,17 @@ div[role="radiogroup"] > label p { color: #555555 !important; font-size: 0.9rem 
 # ── 4. METHODIK TEXT ─────────────────────────────────────────────────────────
 
 METHODIK_TEXT = """
-**Methodik & Datenquellen:**
+**Info & Quellen**
 
-Die Daten stammen aus dem öffentlichen Kartenportal (WebGIS) der Stadt Biel (Stand: 26.11.2025). Da die Rohdaten komplex und kaum lesbar sind, haben wir sie mit einer eigenen Logik neu aufbereitet:
+Die Daten stammen aus dem <a href="https://biel-bienne.mapplus.ch/?lang=de&basemap=stadtplan&blop=1&x=2586000&y=1222000&zl=2&hl=0&layers=e322_grundeigentum_w%7Ce321_gemeindegrenze" target="_blank">öffentlichen Kartenportal (WebGIS) der Stadt Biel</a> (Stand: 26.11.2025). Da die Rohdaten aber rein nur auf geografischen Koordinaten und nicht auf konkreten Adressen basieren, haben wir sie mit einer eigenen Logik neu aufbereitet:
 
-<strong>1. Besitz-Check:</strong> Wir haben für jede Parzelle automatisiert analysiert, wer involviert ist (z. B. wenn die Stadt den Boden besitzt, aber jemand anderes das Baurecht).
-<strong>2. Daten-Fusion:</strong> Wir haben die geografischen Pläne der Stadt automatisiert mit dem Adressregister des Bundes [map.geo.admin.ch](https://map.geo.admin.ch) abgeglichen, damit man Grundstücke einfach per Adresse finden kann.
+<strong>1. Besitz-Check:</strong> Wir haben für jede Parzelle automatisiert analysiert, wer involviert ist (z. B. wenn die Stadt den Boden besitzt, aber jemand anderes das Baurecht). Diese Daten sind im WebGIS der Stadt hinterlegt.
+
+<strong>2. Daten-Fusion:</strong> Wir haben die geografischen Pläne der Stadt automatisiert mit dem <a href="https://map.geo.admin.ch" target="_blank">Adressregister des Bundes</a> abgeglichen.
+
 <strong>3. Einfachheit:</strong> Bei komplizierten Fällen (wie etwa bei vielen verschiedenen Eigentümern in einem Haus) haben wir die Darstellung vereinfacht, um die Übersichtlichkeit zu wahren.
 
-Dieses Tool dient ausschliesslich der Orientierung. Es bietet keine verbindliche Auskunft. Bei komplexen Grenz- oder Stockwerkeigentums-Fällen können vereinzelte Ungenauigkeiten auftreten.
+Aufgrund der Verknüpfung verschiedener Datenquellen sind vereinzelt Fehler möglich. Es ist weiter möglich, dass einzelne Hausnummern in der Datenbank des Bundes hinterlegt sind, an der betroffenen Stelle jedoch (noch) kein Gebäude steht.
 """
 
 def methodik_als_html(text: str) -> str:
@@ -623,7 +625,7 @@ if lottie_data:
 st.markdown("<div class='main-title'>Wie viel Stadt besitzt die Stadt?</div>", unsafe_allow_html=True)
 st.markdown("<div class='title-subtext'>Suchportal für den Immobilienbesitz der Stadt Biel</div>", unsafe_allow_html=True)
 
-t1, t2, t3 = st.tabs(["🔍 Suche", "Interaktive Karte", "Info"])
+t1, t2, t3 = st.tabs(["🔍 Suche", "Interaktive Karte", "Info & Quellen"])
 
 # Methodik-Tab rechtsbündig per JS
 st.components.v1.html("""
@@ -918,7 +920,7 @@ def render_karte():
 with t2:
     render_karte()
 
-# ── Tab 3: Methodik ───────────────────────────────────────────────────────────
+# ── Tab 3: Info & Quellen ────────────────────────────────────────────────────
 with t3:
     st.markdown(
         f"<div class='methodology-box'>{methodik_als_html(METHODIK_TEXT)}</div>",
