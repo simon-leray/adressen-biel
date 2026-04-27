@@ -251,9 +251,8 @@ details.ei summary:hover { background: #F7F7F7; }
     margin-top: 4rem; padding: 2rem; border-radius: 12px;
     background-color: #F2F2F7; font-size: 0.9rem; color: #555555; line-height: 1.6;
 }
-.stTabs [data-baseweb="tab"] {
-    font-size: 1rem !important;
-}
+button[data-baseweb="tab"] p,
+button[data-baseweb="tab"] { font-size: 1.1rem !important; }
 .stTabs [aria-selected="true"] {
     color: #111111 !important;
     border-bottom: 2px solid #111111 !important;
