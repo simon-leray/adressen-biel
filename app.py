@@ -4,6 +4,7 @@ Immobilienregister Biel – Streamlit-App
 
 import os
 import re
+import time
 import json
 import html
 import urllib.parse
@@ -144,25 +145,50 @@ footer { display: none !important; }
     outline: none !important;
 }
 [data-testid="InputInstructions"] { display: none !important; }
-div[data-testid="stExpander"] {
+/* Resultate: native <details> statt st.expander */
+details.ei {
     border-radius: 12px;
-    margin-bottom: 1rem;
-    background-color: #FFFFFF !important;
-    border: 1px solid #EAEAEA !important;
+    margin-bottom: 0.75rem;
+    background: #FFFFFF;
+    border: 1px solid #EAEAEA;
+    overflow: hidden;
 }
-div[data-testid="stExpander"] summary {
-    padding: 1rem 1.25rem !important;
-    min-height: 60px !important;
-    display: flex !important;
-    align-items: center !important;
+details.ei summary {
+    padding: 0.9rem 1.25rem;
+    min-height: 56px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 1rem;
+    color: #111;
+    list-style: none;
+    user-select: none;
 }
-[data-testid="stExpanderDetails"] {
-    padding-top: 0.5rem !important;
-    padding-bottom: 1.25rem !important;
+details.ei summary::-webkit-details-marker { display: none; }
+details.ei summary::after {
+    content: '›';
+    margin-left: auto;
+    font-size: 1.4rem;
+    color: #AAAAAA;
+    transition: transform 0.18s;
+    display: inline-block;
 }
-[data-testid="stExpanderDetails"] hr {
-    margin-top: 0.4rem !important;
-    margin-bottom: 0.75rem !important;
+details.ei[open] summary::after { transform: rotate(90deg); }
+details.ei summary:hover { background: #F7F7F7; }
+.ei-body {
+    padding: 0.6rem 1.25rem 1.25rem;
+    border-top: 1px solid #F0F0F0;
+    font-size: 0.92rem;
+    line-height: 1.6;
+}
+.ei-meta {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1rem;
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #F0F0F0;
 }
 .main-title {
     text-align: center; font-weight: 700; font-size: 2.8rem;
@@ -292,11 +318,11 @@ div[role="radiogroup"] > label p { color: #555555 !important; font-size: 0.9rem 
 METHODIK_TEXT = """
 **Methodik & Datenquellen:**
 
-Die Daten stammen aus dem öffentlichen WebGIS der Stadt Biel (Stand: 26.11.2025). Da die Rohdaten komplex sind, haben wir sie mit einer eigenen Logik neu aufbereitet:
+Die Daten stammen aus dem öffentlichen Kartenportal (WebGIS) der Stadt Biel (Stand: 26.11.2025). Da die Rohdaten komplex und kaum lesbar sind, haben wir sie mit einer eigenen Logik neu aufbereitet:
 
 <strong>1. Besitz-Check:</strong> Wir haben für jede Parzelle automatisiert analysiert, wer involviert ist (z. B. wenn die Stadt den Boden besitzt, aber jemand anderes das Baurecht).
-<strong>2. Daten-Fusion:</strong> Wir haben die geografischen Pläne der Stadt mit dem Adressregister des Bundes [map.geo.admin.ch](https://map.geo.admin.ch) verknüpft, damit man Grundstücke einfach per Adresse finden kann.
-<strong>3. Einfachheit:</strong> Bei komplizierten Fällen (wie vielen verschiedenen Eigentümern in einem Haus) haben wir die Darstellung vereinfacht, um die Übersichtlichkeit zu wahren.
+<strong>2. Daten-Fusion:</strong> Wir haben die geografischen Pläne der Stadt automatisiert mit dem Adressregister des Bundes [map.geo.admin.ch](https://map.geo.admin.ch) abgeglichen, damit man Grundstücke einfach per Adresse finden kann.
+<strong>3. Einfachheit:</strong> Bei komplizierten Fällen (wie etwa bei vielen verschiedenen Eigentümern in einem Haus) haben wir die Darstellung vereinfacht, um die Übersichtlichkeit zu wahren.
 
 Dieses Tool dient ausschliesslich der Orientierung. Es bietet keine verbindliche Auskunft. Bei komplexen Grenz- oder Stockwerkeigentums-Fällen können vereinzelte Ungenauigkeiten auftreten.
 """
@@ -634,22 +660,25 @@ with t1:
         hideBadge();
         [100, 300, 700, 1500].forEach(function(t) { setTimeout(apply, t); setTimeout(hideBadge, t); });
         window.parent.addEventListener('resize', apply);
-        try {
-            new MutationObserver(function() { setTimeout(apply, 60); setTimeout(hideBadge, 60); })
-                .observe(window.parent.document.body, { childList: true, subtree: true });
-        } catch(e) {}
+
+        new MutationObserver(function() {
+            setTimeout(apply, 60);
+            setTimeout(hideBadge, 60);
+        }).observe(window.parent.document.body, {childList: true, subtree: true});
     })();
     </script>
     """, height=0)
 
     f_mode = st.session_state.filter_mode
     hinweis_key = f_mode if f_mode in FILTER_HINWEISE else "Alle"
+    
     st.markdown(
         f"<p style='color:#888888; font-size:0.85rem; margin-top:0.4rem; margin-bottom:20px;'>"
         f"{FILTER_HINWEISE[hinweis_key]}</p>",
         unsafe_allow_html=True,
     )
 
+    # 1. PLATZHALTER & SPINNER SOFORT STARTEN
     search = st.session_state.get("search_input", "")
 
     # Seite zurücksetzen wenn sich der Suchtext geändert hat
@@ -657,6 +686,21 @@ with t1:
         st.session_state.page = 1
         st.session_state.prev_search = search
 
+    _slot = st.empty()
+
+    # Zeige den Spinner nur, wenn auch wirklich gefiltert/gesucht wird
+    if f_mode != "Alle" or search:
+        _slot.markdown("""
+        <div style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:99999;
+        background:rgba(250,250,250,0.85);display:flex;align-items:center;justify-content:center;">
+        <div style="width:48px;height:48px;border-radius:50%;
+        border:4px solid #E0E0E0;border-top-color:#111;
+        animation:_sp 0.75s linear infinite;"></div>
+        <style>@keyframes _sp{to{transform:rotate(360deg)}}</style></div>
+        """, unsafe_allow_html=True)
+        time.sleep(0.1)  # Kurze Pause, damit Streamlit das HTML an den Browser sendet
+
+    # 2. DATEN FILTERN & SORTIEREN
     f_df = df
     if f_mode != "Alle":
         f_df = f_df[f_df['Filter_Kategorie'] == f_mode]
@@ -668,52 +712,52 @@ with t1:
         )]
     f_df = f_df.sort_values('Adresse', key=lambda col: col.map(natural_sort_key))
 
+    # 3. RESULTATE RENDERN (Überschreibt den Spinner im _slot)
     if f_mode == "Alle" and not search:
-        st.info("Bitte Adresse eingeben oder Filter wählen.")
+        _slot.info("Bitte Adresse eingeben oder Filter wählen.")
     elif f_df.empty:
-        st.info("Keine Treffer.")
+        _slot.info("Keine Treffer.")
     else:
-        total      = len(f_df)
+        total       = len(f_df)
         total_pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
-        page       = max(1, min(st.session_state.page, total_pages))
-        # Pagination-State synchronisieren (sonst desync nach Filterwechsel)
+        page        = max(1, min(st.session_state.page, total_pages))
+        
+        # Pagination-State synchronisieren
         if st.session_state.page != page:
             st.session_state.page = page
+            
         start = (page - 1) * PAGE_SIZE
         end   = min(start + PAGE_SIZE, total)
 
-        # Trefferanzeige
-        st.markdown(
-            f"<div style='margin-bottom:1rem; opacity:0.6; font-size:0.8rem;'>"
-            f"Resultate {start + 1}–{end} von {total}</div>",
-            unsafe_allow_html=True,
-        )
-
-        # Ergebnisse der aktuellen Seite
+        parts = [f"<div style='margin-bottom:1rem;opacity:0.6;font-size:0.8rem;'>"
+                 f"Resultate {start + 1}–{end} von {total}</div>"]
+                 
         for _, r in f_df.iloc[start:end].iterrows():
             try:
-                with st.expander(str(r['Adresse'])):
-                    st.markdown(
-                        generiere_besitz_text(r['Eigentumsverhältnis'], r['Grundstücksnummer(n)']),
-                        unsafe_allow_html=True,
-                    )
-                    maps_query = urllib.parse.quote(f"{r['Adresse']}, Biel")
-                    st.markdown(
-                        f'<a href="https://www.google.com/maps/search/?api=1&query={maps_query}"'
-                        f' target="_blank" class="maps-link">📍 Auf Google Maps anzeigen</a>',
-                        unsafe_allow_html=True,
-                    )
-                    st.write("---")
-                    c1, c2, c3 = st.columns(3)
-                    eigentuem_clean = re.sub(r'\d{2}:\s*', '', str(r['Eigentumsverhältnis']))
-                    parzelle = html.escape(str(r['Grundstücksnummer(n)']))
-                    eigentum = html.escape(eigentuem_clean)
-                    flaeche  = html.escape(str(r['Fläche(n)']))
-                    c1.markdown(f"<div class='label-text'>Parzelle</div>{parzelle}", unsafe_allow_html=True)
-                    c2.markdown(f"<div class='label-text'>Eigentum</div>{eigentum}", unsafe_allow_html=True)
-                    c3.markdown(f"<div class='label-text'>Fläche</div>{flaeche}", unsafe_allow_html=True)
-            except Exception as e:
-                st.error(f"Eintrag konnte nicht angezeigt werden: {e}")
+                eigentuem_clean = re.sub(r'\d{2}:\s*', '', str(r['Eigentumsverhältnis']))
+                parzelle   = html.escape(str(r['Grundstücksnummer(n)']))
+                eigentum   = html.escape(eigentuem_clean)
+                flaeche    = html.escape(str(r['Fläche(n)']))
+                adresse    = html.escape(str(r['Adresse']))
+                maps_query = urllib.parse.quote(f"{r['Adresse']}, Biel")
+                besitz     = generiere_besitz_text(r['Eigentumsverhältnis'], r['Grundstücksnummer(n)'])
+                
+                parts.append(
+                    f'<details class="ei"><summary>{adresse}</summary>'
+                    f'<div class="ei-body">{besitz}'
+                    f'<a href="https://www.google.com/maps/search/?api=1&query={maps_query}"'
+                    f' target="_blank" class="maps-link">📍 Auf Google Maps anzeigen</a>'
+                    f'<div class="ei-meta">'
+                    f'<div><span class="label-text">Parzelle</span>{parzelle}</div>'
+                    f'<div><span class="label-text">Eigentum</span>{eigentum}</div>'
+                    f'<div><span class="label-text">Fläche</span>{flaeche}</div>'
+                    f'</div></div></details>'
+                )
+            except Exception:
+                pass
+                
+        # Hier wird der Spinner durch die fertigen HTML-Resultate ersetzt
+        _slot.markdown("".join(parts), unsafe_allow_html=True)
 
         # Pagination-Navigation
         if total_pages > 1:
@@ -733,7 +777,7 @@ with t1:
                 if st.button("Nächste →", disabled=(page == total_pages), use_container_width=True):
                     st.session_state.page = page + 1
                     st.rerun()
-
+                    
 # ── Tab 2: Karte ─────────────────────────────────────────────────────────────
 @st.fragment
 def render_karte():
