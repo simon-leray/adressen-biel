@@ -411,7 +411,39 @@ def bestimme_kategorie(row) -> str:
         return "Bodenbesitz" if any("01" not in b for b in bau) else "Vollbesitz"
     return "Andere"
 
-def generiere_besitz_text(besitz_string: str, nummern_string: str) -> str:
+def bestimme_kategorien(row) -> frozenset:
+    """Returns all applicable filter categories for a row (may be more than one)."""
+    besitz    = str(row['Eigentumsverhältnis']).split(" / ")
+    nummern   = str(row['Grundstücksnummer(n)']).split(" / ")
+    sonderfall = str(row.get('Sonderfall', '')).lower()
+    boden, bau = [], []
+    for i, b in enumerate(besitz):
+        info = nummern[i] if i < len(nummern) else ""
+        if "Baurecht" in info:
+            bau.append(b)
+        elif "Quellenrecht" not in info:
+            boden.append(b)
+    stadt_boden = any(re.search(r'\b01\b', b) for b in boden)
+    stadt_bau   = any(re.search(r'\b01\b', b) for b in bau)
+    other_bau   = any(not re.search(r'\b01\b', b) for b in bau)
+    bau_split   = "aufgeteilt" in sonderfall
+    if not stadt_boden and not stadt_bau:
+        return frozenset({"Andere"})
+    if not stadt_boden and stadt_bau:
+        return frozenset({"Gebäudebesitz"})
+    cats: set[str] = set()
+    if not bau:
+        cats.add("Vollbesitz")
+    else:
+        if stadt_bau:
+            cats.add("Vollbesitz")
+        if other_bau or (stadt_bau and bau_split):
+            cats.add("Bodenbesitz")
+        if not cats:
+            cats.add("Bodenbesitz")
+    return frozenset(cats)
+
+def generiere_besitz_text(besitz_string: str, nummern_string: str, sonderfall: str = "") -> str:
     if not besitz_string:
         return "Keine Daten verfügbar."
 
@@ -439,13 +471,57 @@ def generiere_besitz_text(besitz_string: str, nummern_string: str) -> str:
         txt_boden_d = unique_d(boden)
         txt_bau_n   = unique_n(bau)
         txt_bau_d   = unique_d(bau)
-        if txt_boden_d == txt_bau_d:
+
+        boden_codes = {_eigentuemer_code(b) for b in boden} - {None}
+        only_stadt_boden = boden_codes == {"01"}
+
+        bau_dativ_list = list(dict.fromkeys(eigentuemer_dativ(b) for b in bau))
+        multiple_bau_distinct = len(bau_dativ_list) > 1
+        # Multiple bau records of the same code → "mehrere X" (e.g. 03+03 Baurecht)
+        multiple_bau_same_code = len(bau) > 1 and not multiple_bau_distinct
+
+        _BAU_PLURAL_D = {
+            "01": "der Stadt Biel",
+            "02": "mehreren öffentlich-rechtlichen Institutionen",
+            "03": "mehreren Privatpersonen oder privaten Firmen",
+        }
+
+        if multiple_bau_same_code:
+            bau_code = _eigentuemer_code(bau[0])
+            plural_d = _BAU_PLURAL_D.get(bau_code, "mehreren Parteien")
             return (
                 f"<strong>BAURECHT</strong><br><br>"
-                f"Sowohl der Grund und Boden als auch das Gebäude gehören "
-                f"<strong>{txt_boden_d}</strong>. Rechtlich sind dies jedoch zwei "
-                f"getrennte Grundstücke, die im Register unabhängig behandelt werden."
+                f"Der Grund und Boden gehört <strong>{txt_boden_d}</strong>. "
+                f"Das Baurecht (Gebäude) ist im Register <strong>{plural_d}</strong> zugewiesen."
             )
+
+        if txt_boden_d == txt_bau_d:
+            if sonderfall and "aufgeteilt" in sonderfall.lower():
+                txt_boden_n = unique_n(boden)
+                return (
+                    f"<strong>BAURECHT</strong><br><br>"
+                    f"Der Grund und Boden gehört <strong>{txt_boden_d}</strong>. "
+                    f"Das Baurecht (Gebäude) ist aufgeteilt auf <strong>{txt_boden_n}</strong> und Private."
+                )
+            caveat = (
+                " — wobei es sich nicht zwingend um dieselbe Institution handelt"
+                if not only_stadt_boden else ""
+            )
+            return (
+                f"<strong>BAURECHT</strong><br><br>"
+                f"Der Grund gehört <strong>{txt_boden_d}</strong>. "
+                f"Das Baurecht (Gebäude) gehört ebenfalls <strong>{txt_bau_d}</strong>{caveat}."
+            )
+
+        if multiple_bau_distinct:
+            return (
+                f"<strong>BAURECHT</strong><br><br>"
+                f"Der Grund gehört <strong>{txt_boden_d}</strong>. "
+                f"Das Baurecht (Gebäude) ist aufgeteilt: es gehört "
+                f"<strong>{txt_bau_d}</strong>. "
+                f"Der Boden bleibt weiterhin im Besitz von <strong>{txt_boden_d}</strong>."
+            )
+
         return (
             f"<strong>BAURECHT</strong><br><br>"
             f"Der Grund gehört <strong>{txt_boden_d}</strong>. "
@@ -455,8 +531,9 @@ def generiere_besitz_text(besitz_string: str, nummern_string: str) -> str:
         )
     if len(boden) > 1:
         return (
-            f"<strong>GRENZFALL / MITBESITZ / STOCKWERKEIGENTUM</strong><br><br>"
-            f"Dieses Objekt gehört <strong>{unique_d(boden)}</strong> gemeinsam."
+            f"<strong>MEHRERE PARZELLEN</strong><br><br>"
+            f"Diese Adresse umfasst mehrere separate Parzellen mit verschiedenen Eigentümern. "
+            f"Beteiligt sind: <strong>{unique_d(boden)}</strong>."
         )
     if boden:
         return (
@@ -475,8 +552,12 @@ def load_data() -> pd.DataFrame | None:
         st.error(f"Datei nicht gefunden: {EXCEL_FILE}")
         return None
     df = pd.read_excel(EXCEL_FILE, sheet_name=SHEET_NAME).fillna("")
+    df.rename(columns={"Unnamed: 4": "Sonderfall"}, inplace=True)
+    if "Sonderfall" not in df.columns:
+        df["Sonderfall"] = ""
     df['Adresse'] = df['Adresse'].apply(deutsch_zuerst)
-    df['Filter_Kategorie'] = df.apply(bestimme_kategorie, axis=1)
+    df['Filter_Kategorie']  = df.apply(bestimme_kategorie, axis=1)
+    df['Filter_Kategorien'] = df.apply(bestimme_kategorien, axis=1)
     df['Adresse_norm'] = df['Adresse'].apply(normalize)
     return df
 
@@ -703,7 +784,7 @@ with t1:
     # 2. DATEN FILTERN & SORTIEREN
     f_df = df
     if f_mode != "Alle":
-        f_df = f_df[f_df['Filter_Kategorie'] == f_mode]
+        f_df = f_df[f_df['Filter_Kategorien'].apply(lambda cats: f_mode in cats)]
     if search:
         norm_search = normalize(search)
         pattern = r'\b' + re.escape(norm_search)
@@ -740,11 +821,16 @@ with t1:
                 flaeche    = html.escape(str(r['Fläche(n)']))
                 adresse    = html.escape(str(r['Adresse']))
                 maps_query = urllib.parse.quote(f"{r['Adresse']}, Biel")
-                besitz     = generiere_besitz_text(r['Eigentumsverhältnis'], r['Grundstücksnummer(n)'])
-                
+                sonderfall = str(r.get('Sonderfall', '')).strip()
+                besitz     = generiere_besitz_text(r['Eigentumsverhältnis'], r['Grundstücksnummer(n)'], sonderfall)
+                sonderfall_html = (
+                    f'<div style="background:#FFF8E1;border-left:3px solid #F59E0B;'
+                    f'padding:8px 12px;margin:0 0 10px;border-radius:4px;font-size:0.85rem;line-height:1.5;">'
+                    f'⚠️ <strong>Hinweis:</strong> {html.escape(sonderfall)}</div>'
+                ) if sonderfall else ''
                 parts.append(
                     f'<details class="ei"><summary>{adresse}</summary>'
-                    f'<div class="ei-body">{besitz}'
+                    f'<div class="ei-body">{sonderfall_html}{besitz}'
                     f'<a href="https://www.google.com/maps/search/?api=1&query={maps_query}"'
                     f' target="_blank" class="maps-link">📍 Auf Google Maps anzeigen</a>'
                     f'<div class="ei-meta">'
